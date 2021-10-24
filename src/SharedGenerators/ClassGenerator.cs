@@ -416,7 +416,7 @@ namespace SpeedyGenerators
             if (compareValues)
             {
                 // if (_field == value) return;
-                CreateCompareValueAndReturn(fieldName);
+                setterStatements.Add(CreateCompareValueAndReturn(fieldName));
             }
 
             if(!string.IsNullOrEmpty(partialMethodName))

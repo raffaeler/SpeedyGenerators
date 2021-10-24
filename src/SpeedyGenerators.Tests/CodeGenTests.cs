@@ -57,20 +57,23 @@ namespace SpeedyGenerators.Tests
                     "OnPropertyChanged",
                     "OnStatusChanged",
                     true,
-                    false).ToString();
+                    false);
 
+            // ToString does not include the leading trivias (comments)
             var expected = @"public string Status
 {
     get => _status;
     set
     {
+        if (_status == value)
+            return;
         var oldValue = _status;
         _status = value;
         OnPropertyChanged();
         OnStatusChanged(oldValue, _status);
     }
 }";
-            Assert.AreEqual(expected, statement);
+            Assert.AreEqual(expected, statement.ToString());
         }
 
 
