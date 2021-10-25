@@ -132,7 +132,7 @@ namespace SpeedyGenerators
                         ?.Identifier.ToString();
                     if (fieldInfo.FieldName == null) return;
 
-                    fieldInfo.FieldType = fieldDeclaration?.Declaration.Type;
+                    fieldInfo.FieldType = fieldDeclaration?.Declaration?.Type;
 
                     if (fieldDeclaration == null) return;
 
