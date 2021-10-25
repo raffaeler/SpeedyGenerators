@@ -79,7 +79,7 @@ namespace SpeedyGenerators.Tests
         OnStatusChanged(oldValue, _status);
     }
 }";
-            Assert.AreEqual(expected, statement.ToString());
+            Assert.AreEqual(Normalize(expected), Normalize(statement.ToString()));
         }
 
         [TestMethod]
@@ -120,6 +120,7 @@ namespace AnotherNamespace
         }
 
 
-
+        private string Normalize(string input)
+            => input.Replace("\r\n", "\n");
     }
 }
