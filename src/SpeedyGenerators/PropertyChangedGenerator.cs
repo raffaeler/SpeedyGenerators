@@ -6,6 +6,7 @@ using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
 namespace SpeedyGenerators
 {
@@ -16,19 +17,34 @@ namespace SpeedyGenerators
         {
             if (context.SyntaxReceiver == null) return;
             var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
-            var fieldInfos = syntaxReceiver.FieldInfos;
 
-            // assume the syntax receiver provide "things" coming from the same class
-            var className = fieldInfos.FirstOrDefault()?.ClassName;
-            var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
+            foreach (var fieldInfos in syntaxReceiver.FieldInfos.Values)
+            {
+                var syntaxTree = fieldInfos[0].SyntaxTree;
+                if(syntaxTree==null) return;
+            
+                var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
+                foreach (var fieldInfo in fieldInfos)
+                {
+                    if (fieldInfo.FieldType == null ||
+                        fieldInfo.FieldType is PredefinedTypeSyntax) continue;
+                
+                    var typeInfo = semanticModel.GetTypeInfo(fieldInfo.FieldType);
+                    fieldInfo.FieldTypeNamespace = typeInfo.Type?.ContainingNamespace.ToString();
+                }
 
-            if (className == null) return;
-            if (!fieldInfos.Any(f => f.AttributeArguments != null)) return;
+                // assume the syntax receiver provide "things" coming from the same class
+                var className = fieldInfos.FirstOrDefault()?.ClassName;
+                var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
 
-            var mgr = new GeneratorManager();
-            var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
+                if (className == null) return;
+                if (!fieldInfos.Any(f => f.AttributeArguments != null)) return;
 
-            if(result != null) context.AddSource(className, result);
+                var mgr = new GeneratorManager();
+                var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
+
+                context.AddSource(className, result);
+            }
         }
 
         public void Initialize(GeneratorInitializationContext context)
@@ -38,25 +54,14 @@ namespace SpeedyGenerators
 
         private class SyntaxReceiver : ISyntaxReceiver
         {
-            internal List<FieldInfo> FieldInfos { get; } = new();
+            internal Dictionary<string, List<FieldInfo>> FieldInfos { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
-                //if (syntaxNode is ClassDeclarationSyntax classDeclaration &&
-                //    classDeclaration.Modifiers
-                //        .Any(Microsoft.CodeAnalysis.CSharp.SyntaxKind.PartialKeyword))
-                //{
-                //    EditedClass = classDeclaration;
-                //}
-                //else
-                //{
-                //    EditedClass = null;
-                //}
-
                 if (syntaxNode is FieldDeclarationSyntax fieldDeclaration)
                 {
                     var fieldInfo = new FieldInfo();
-                    FieldInfos.Add(fieldInfo);
+                    fieldInfo.SyntaxTree = syntaxNode.SyntaxTree;
 
                     var editedClass = syntaxNode.Ancestors()
                         .OfType<ClassDeclarationSyntax>()
@@ -68,8 +73,17 @@ namespace SpeedyGenerators
                         .FirstOrDefault()
                         ?.Name
                         ?.ToString();
+                    fieldInfo.NamespaceName ??= String.Empty;
 
                     fieldInfo.ClassName = editedClass.Identifier.ToString();
+                    var fullName = $"{fieldInfo.NamespaceName}.{fieldInfo.ClassName}";
+                    if (!FieldInfos.TryGetValue(fullName, out List<FieldInfo> fieldInfos))
+                    {
+                        fieldInfos = new List<FieldInfo>();
+                        FieldInfos[fullName] = fieldInfos;
+                    }
+
+                    fieldInfos.Add(fieldInfo);
 
                     fieldInfo.FieldName = fieldDeclaration?.Declaration
                         ?.Variables.FirstOrDefault()

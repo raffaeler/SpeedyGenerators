@@ -1,3 +1,9 @@
+using System.Linq;
+using System.Text;
+
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SpeedyGenerators.Tests
@@ -75,6 +81,44 @@ namespace SpeedyGenerators.Tests
 }";
             Assert.AreEqual(expected, statement.ToString());
         }
+
+        [TestMethod]
+        public void ReadFieldType()
+        {
+            SourceText sourceText = SourceText.From(@"
+namespace SomeNamespace
+{
+    public partial class SomeType { }
+
+}
+
+namespace AnotherNamespace
+{
+    using SomeNamespace;
+    public partial class Test
+    {
+        private SomeType _field;
+    }
+}", Encoding.UTF8);
+
+            var tree = CSharpSyntaxTree.ParseText(sourceText);
+            if (tree == null) { Assert.Fail("Tree is null"); return; }
+
+            var compilation = CSharpCompilation.Create("fake", new[] { tree }, null, null);
+            var model = compilation.GetSemanticModel(tree);
+
+            var field = tree.GetRoot()
+                .DescendantNodes()
+                .OfType<FieldDeclarationSyntax>()
+                .Single();
+
+            var declaration = field.Declaration;
+            var type = declaration.Type;
+            var typeInfo = model.GetTypeInfo(type);
+            var namespaceName = typeInfo.Type?.ContainingNamespace.ToString();
+            Assert.AreEqual("SomeNamespace", namespaceName);
+        }
+
 
 
     }

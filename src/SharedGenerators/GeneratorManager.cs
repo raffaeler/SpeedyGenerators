@@ -32,6 +32,13 @@ namespace SpeedyGenerators
             {
                 if (field == null || field.AttributeArguments == null ||
                     field.FieldType == null || field.FieldName == null) continue;
+
+                if (field.FieldTypeNamespace != null
+                    && field.FieldTypeNamespace != field.NamespaceName)
+                {
+                    gen.Usings.Add(field.FieldTypeNamespace);
+                }
+
                 var partialMethod = field.AttributeArguments.ExtraNotify
                     ? $"On{field.AttributeArguments.Name}Changed"
                     : null;
