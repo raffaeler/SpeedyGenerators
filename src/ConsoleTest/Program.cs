@@ -12,17 +12,17 @@ namespace ConsoleTest
         [MakeProperty("Status", true, true)]
         private int _status;
 
-        //[MakeProperty("Name", true, false)]
-        //private string? _name;
+        [MakeProperty("Name", true, false)]
+        private string? _name;
 
-        //[MakeProperty("Description", false, false)]
-        //private string? _description;
+        [MakeProperty("Description", false, false)]
+        private string? _description;
 
-        //[MakeProperty("TextList", false, false)]
-        //private ObservableCollection<string>? _textList;
+        [MakeProperty("TextList", false, false)]
+        private ObservableCollection<string>? _textList;
 
-        //[MakeProperty("X")]
-        //private int _x;
+        [MakeProperty("X")]
+        private int _x;
 
         public static void Main(string[] args)
         {

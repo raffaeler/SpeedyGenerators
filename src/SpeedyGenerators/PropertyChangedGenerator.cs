@@ -18,8 +18,11 @@ namespace SpeedyGenerators
             if (context.SyntaxReceiver == null) return;
             var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
 
-            foreach (var fieldInfos in syntaxReceiver.FieldInfos.Values)
+            var filenamesLookup = CreateNames(syntaxReceiver.FieldInfos);
+
+            foreach (var kvp in syntaxReceiver.FieldInfos)
             {
+                var fieldInfos = kvp.Value;
                 var syntaxTree = fieldInfos[0].SyntaxTree;
                 if(syntaxTree==null) return;
             
@@ -43,7 +46,45 @@ namespace SpeedyGenerators
                 var mgr = new GeneratorManager();
                 var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
 
-                context.AddSource(className, result);
+                var hintName = filenamesLookup[kvp.Key];
+                context.AddSource(hintName, result);
+            }
+        }
+
+        /// <summary>
+        /// Generate a new dictionary:
+        /// key => namespace.name (identical to the incoming dictionary)
+        /// value => a new unique name for the filename
+        /// The value can be just the class name or something more complex
+        /// whenever multiple classes with the same name (but different namespace) exists
+        /// </summary>
+        private Dictionary<string, string> CreateNames(
+            Dictionary<string, List<FieldInfo>> fieldInfos)
+        {
+            int i = 0;
+            Dictionary<string, string> result = new();
+            HashSet<string> values = new();
+            foreach (var kvp in fieldInfos)
+            {
+                var firstItem = kvp.Value.FirstOrDefault();
+                if (firstItem == null || firstItem.ClassName == null) continue;
+
+                var uniqueName = GenerateUnique(values, firstItem.ClassName, ref i);
+                result[kvp.Key] = uniqueName;
+                values.Add(uniqueName);
+            }
+
+            return result;
+
+            static string GenerateUnique(HashSet<string> values, string name, ref int i)
+            {
+                var tempName = name;
+                while(values.Contains(tempName))
+                {
+                    tempName = $"{tempName}{++i}";
+                }
+
+                return tempName;
             }
         }
 
@@ -68,6 +109,7 @@ namespace SpeedyGenerators
                         .FirstOrDefault();
 
                     if(editedClass == null) return;
+                    fieldInfo.ClassModifiers = editedClass.Modifiers;
                     fieldInfo.NamespaceName = editedClass.Ancestors()
                         .OfType<NamespaceDeclarationSyntax>()
                         .FirstOrDefault()

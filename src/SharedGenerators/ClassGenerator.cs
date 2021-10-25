@@ -20,6 +20,7 @@ namespace SpeedyGenerators
             this.ClassName = className;
         }
 
+        public SyntaxTokenList Modifiers { get; set; }
         public HashSet<string> Usings { get; } = new();
         public string? Namespace { get; }
         public string ClassName { get; }
@@ -46,10 +47,11 @@ namespace SpeedyGenerators
                     SyntaxFactory.IdentifierName(Namespace));
             }
 
-            var classDeclaration = SyntaxFactory.ClassDeclaration(ClassName);
-            classDeclaration = classDeclaration.AddModifiers(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+            var partialToken = SyntaxFactory.Token(SyntaxKind.PartialKeyword);
+            if (!Modifiers.Contains(partialToken)) Modifiers.Add(partialToken);
+
+            var classDeclaration = SyntaxFactory.ClassDeclaration(ClassName)
+                .WithModifiers(Modifiers);
             classDeclaration = AddBaseTypes(classDeclaration);
 
             classDeclaration = classDeclaration.AddMembers(Members.ToArray());

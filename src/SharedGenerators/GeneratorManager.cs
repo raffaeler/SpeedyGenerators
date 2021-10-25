@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Text;
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace SpeedyGenerators
@@ -13,6 +16,14 @@ namespace SpeedyGenerators
             IList<FieldInfo> fieldInfos)
         {
             ClassGenerator gen = new(@namespace, className);
+            var modifiers = fieldInfos.FirstOrDefault()?.ClassModifiers;
+            if (modifiers != default(SyntaxTokenList))
+            {
+#pragma warning disable CS8629 // Nullable value type may be null.
+                gen.Modifiers = modifiers.Value;
+#pragma warning restore CS8629 // Nullable value type may be null.
+            }
+
             gen.Usings.Add("System");
             gen.Usings.Add("System.Collections.Generic");
             gen.Usings.Add("System.ComponentModel");
@@ -53,7 +64,7 @@ namespace SpeedyGenerators
                     field.AttributeArguments.CompareValues,
                     false));
 
-                if(partialMethod != null)
+                if (partialMethod != null)
                 {
                     gen.Members.Add(gen.CreatePartialMethod(partialMethod, gen.GetVoidTypeName(),
                         (field.FieldType, "oldValue"), (field.FieldType, "newValue")));
