@@ -3,7 +3,8 @@ name: Publish to nuget.org on a new release
 
 on:
  release:
-   types: [created]
+   types: [ published ]
+   
 #   tags:
 #     - "v[0-9]+.[0-9]+.[0-9]+"
 # The item "workflow_dispatch" is used for manual trigger but does not read the tag
