@@ -1,0 +1,48 @@
+# Build, Test, Package and deploy
+name: .NET
+
+on:
+ workflow_dispatch:
+#   tags:
+#     - "v[0-9]+.[0-9]+.[0-9]+"
+#  push:
+#    branches: [ main ]
+#  pull_request:
+#    branches: [ main ]
+
+defaults:
+  run:
+    working-directory: ./src
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set version from Tag
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --no-restore -c Release /p:Version=${VERSION}
+      
+    - name: Test
+      run: dotnet test --no-build -c Release /p:Version=${VERSION} --verbosity normal
+      
+    - name: Pack
+      run: dotnet pack -c Release /p:Version=${VERSION} -p:PackageVersion=${VERSION} --no-build --output .
+      
+    - name: Push
+      run: dotnet nuget push SpeedyGenerators.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.NUGETAPIKEY }}
+    
