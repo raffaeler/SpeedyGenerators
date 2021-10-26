@@ -48,8 +48,8 @@ jobs:
     - name: Pack
       run: dotnet pack -c Release /p:Version=${VERSION} -p:PackageVersion=${VERSION} --no-build --output .
       
-    #- name: Push
-    #  run: dotnet nuget push SpeedyGenerators.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${NUGET_TOKEN}
-    #  env:
-    #    NUGET_TOKEN: ${{ secrets.NUGETAPIKEY }}
+    - name: Push
+      run: dotnet nuget push SpeedyGenerators.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.NUGETAPIKEY }}
     
