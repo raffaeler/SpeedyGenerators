@@ -1,0 +1,12 @@
+# SpeedyGenerators
+
+
+
+## INotifyPropertyChanged
+
+
+
+```
+Example code
+```
+

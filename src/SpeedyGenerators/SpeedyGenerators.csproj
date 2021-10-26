@@ -13,5 +13,49 @@
 
     <Import Project="..\SharedGenerators\SharedGenerators.projitems" Label="Shared" />
 
+    <PropertyGroup>
+        <!-- Generates a package at build -->
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+        <!-- Do not include the generator as a lib dependency -->
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+
+        <Authors>Raffaele Rialdi (@raffaeler)</Authors>
+        <Company>Raffaele Rialdi</Company>
+        <Description>A collection of C# Code generators. Currently implementing INotifyPropertyChanged on various flavors.</Description>
+        <PackageTags>C# Code Generator;INotifyPropertyChanged</PackageTags>
+        <Copyright>Copyright (c) Raffaele Rialdi (@raffaeler), 2021</Copyright>
+        
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <RepositoryUrl>https://github.com/raffaeler/SpeedyGenerators</RepositoryUrl>
+        <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+        <!--<PackBuildOutput>true</PackBuildOutput>-->
+        <PackageId>SpeedyGenerators</PackageId>
+        <PackOnBuild>true</PackOnBuild>
+        <!--<PackFolder>analyzers\cs</PackFolder>-->
+        <DebugType>embedded</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+        <PackageProjectUrl>https://github.com/raffaeler/SpeedyGenerators</PackageProjectUrl>
+        <PackageIcon>Logo.png</PackageIcon>
+        <PackageReadmeFile>Package.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Package the generator in the analyzer directory of the nuget package -->
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <None Include="..\..\Package.md">
+          <Pack>True</Pack>
+          <PackagePath>\</PackagePath>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Logo.png">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
+    </ItemGroup>
 
 </Project>
