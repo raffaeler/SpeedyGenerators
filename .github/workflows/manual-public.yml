@@ -1,5 +1,5 @@
 # Build, Test, Package and deploy
-name: .NET
+name: Manually publish to public nuget.org
 
 on:
  workflow_dispatch:
