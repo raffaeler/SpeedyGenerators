@@ -1,10 +1,14 @@
+# Build, Test, Package and deploy
 name: .NET
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+ push:
+   tags:
+     - "v[0-9]+.[0-9]+.[0-9]+"
+#  push:
+#    branches: [ main ]
+#  pull_request:
+#    branches: [ main ]
 
 defaults:
   run:
@@ -12,18 +16,33 @@ defaults:
 
 jobs:
   build:
-  
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+    
+    - name: Set version from Tag
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+    
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.x
+        
     - name: Restore dependencies
       run: dotnet restore
+      
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore -c Release /p:Version=${VERSION}
+      
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build -c Release /p:Version=${VERSION} --verbosity normal
+      
+    - name: Pack
+      run: dotnet pack -c Release /p:Version=${VERSION} -p:PackageVersion=${VERSION} --no-build --output .
+      
+    - name: Push
+      run: dotnet nuget push NuGet.Workflow.${VERSION}.nupkg --source https://nuget.pkg.github.com/raffaeler/index.json --api-key ${GITHUB_TOKEN}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
