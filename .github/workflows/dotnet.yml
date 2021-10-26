@@ -42,7 +42,7 @@ jobs:
       run: dotnet pack -c Release /p:Version=${VERSION} -p:PackageVersion=${VERSION} --no-build --output .
       
     - name: Push
-      run: dotnet nuget push NuGet.Workflow.${VERSION}.nupkg --source https://nuget.pkg.github.com/raffaeler/index.json --api-key ${GITHUB_TOKEN}
+      run: dotnet nuget push ./src/NuGet.Workflow.${VERSION}.nupkg --source https://nuget.pkg.github.com/raffaeler/index.json --api-key ${GITHUB_TOKEN}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
