@@ -115,6 +115,17 @@ namespace SpeedyGenerators
             {
                 if (syntaxNode is FieldDeclarationSyntax fieldDeclaration)
                 {
+                    if (fieldDeclaration == null) return;
+
+                    var attribute = fieldDeclaration.AttributeLists
+                        .SelectMany(a => a.Attributes)
+                        .Select(a => (attribute: a, attribName: a.Name.ToString()))
+                        .Where(a => a.attribName == "MakeProperty" ||
+                                    a.attribName == "MakePropertyAttribute")
+                        .FirstOrDefault();
+
+                    if (attribute.attribute == null) return;
+
                     var fieldInfo = new FieldInfo();
                     fieldInfo.SyntaxTree = syntaxNode.SyntaxTree;
 
@@ -141,27 +152,15 @@ namespace SpeedyGenerators
 
                     fieldInfos.Add(fieldInfo);
 
-                    fieldInfo.FieldName = fieldDeclaration?.Declaration
+                    fieldInfo.FieldName = fieldDeclaration.Declaration
                         ?.Variables.FirstOrDefault()
                         ?.Identifier.ToString();
                     if (fieldInfo.FieldName == null) return;
 
-                    fieldInfo.FieldType = fieldDeclaration?.Declaration?.Type;
+                    fieldInfo.FieldType = fieldDeclaration.Declaration?.Type;
 
-                    if (fieldDeclaration == null) return;
-
-                    var attribute = fieldDeclaration.AttributeLists
-                        .SelectMany(a => a.Attributes)
-                        .Where(a => a.Name.ToString() == "MakeProperty")
-                        .FirstOrDefault();
-
-                    if(attribute != null)
-                    {
-                        fieldInfo.AttributeArguments = Extractor.ExtractAttributeArguments(attribute);
-                        fieldInfo.Comments = Extractor.ExtractComments(fieldDeclaration);
-                    }
-
-                    
+                    fieldInfo.AttributeArguments = Extractor.ExtractAttributeArguments(attribute.attribute);
+                    fieldInfo.Comments = Extractor.ExtractComments(fieldDeclaration);
                 }
             }
         }
