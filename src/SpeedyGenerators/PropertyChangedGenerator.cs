@@ -15,39 +15,53 @@ namespace SpeedyGenerators
     {
         public void Execute(GeneratorExecutionContext context)
         {
-            if (context.SyntaxReceiver == null) return;
-            var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
-
-            var filenamesLookup = CreateNames(syntaxReceiver.FieldInfos);
-
-            foreach (var kvp in syntaxReceiver.FieldInfos)
+            try
             {
-                var fieldInfos = kvp.Value;
-                var syntaxTree = fieldInfos[0].SyntaxTree;
-                if(syntaxTree==null) return;
-            
-                var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
-                foreach (var fieldInfo in fieldInfos)
+                if (context.SyntaxReceiver == null) return;
+                var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
+
+                var filenamesLookup = CreateNames(syntaxReceiver.FieldInfos);
+
+                foreach (var kvp in syntaxReceiver.FieldInfos)
                 {
-                    if (fieldInfo.FieldType == null ||
-                        fieldInfo.FieldType is PredefinedTypeSyntax) continue;
-                
-                    var typeInfo = semanticModel.GetTypeInfo(fieldInfo.FieldType);
-                    fieldInfo.FieldTypeNamespace = typeInfo.Type?.ContainingNamespace.ToString();
+                    var fieldInfos = kvp.Value;
+                    var syntaxTree = fieldInfos[0].SyntaxTree;
+                    if (syntaxTree == null) return;
+
+                    var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
+                    foreach (var fieldInfo in fieldInfos)
+                    {
+                        if (fieldInfo.FieldType == null ||
+                            fieldInfo.FieldType is PredefinedTypeSyntax) continue;
+
+                        if (fieldInfo.FieldType == null)
+                        {
+                            ReportDiagnostics(context,
+                                $"The type of the field is unknown (skipping a field)");
+                            continue;
+                        }
+
+                        fieldInfo.FieldTypeNamespaces = Utilities.GetNamespaceChain(
+                            fieldInfo.FieldType, semanticModel);
+                    }
+
+                    // assume the syntax receiver provide "things" coming from the same class
+                    var className = fieldInfos.FirstOrDefault()?.ClassName;
+                    var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
+
+                    if (className == null) return;
+                    if (!fieldInfos.Any(f => f.AttributeArguments != null)) return;
+
+                    var mgr = new GeneratorManager();
+                    var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
+
+                    var hintName = filenamesLookup[kvp.Key];
+                    context.AddSource(hintName, result);
                 }
-
-                // assume the syntax receiver provide "things" coming from the same class
-                var className = fieldInfos.FirstOrDefault()?.ClassName;
-                var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
-
-                if (className == null) return;
-                if (!fieldInfos.Any(f => f.AttributeArguments != null)) return;
-
-                var mgr = new GeneratorManager();
-                var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
-
-                var hintName = filenamesLookup[kvp.Key];
-                context.AddSource(hintName, result);
+            }
+            catch (Exception err)
+            {
+                ReportDiagnostics(context, err);
             }
         }
 
@@ -150,6 +164,28 @@ namespace SpeedyGenerators
                     
                 }
             }
+        }
+
+        private void ReportDiagnostics(GeneratorExecutionContext context, Exception exception)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+                id: "PCG01",
+                title: "General error",
+                messageFormat: "An exception was generated: '{0}'",
+                category: "PropertyChangedGenerator",
+                DiagnosticSeverity.Warning,
+                isEnabledByDefault: true), Location.None, exception.Message));
+        }
+
+        private void ReportDiagnostics(GeneratorExecutionContext context, string detail)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+                id: "PCG02",
+                title: "General syntax error",
+                messageFormat: "A syntax error in the code is preventing the generation '{0}'",
+                category: "PropertyChangedGenerator",
+                DiagnosticSeverity.Warning,
+                isEnabledByDefault: true), Location.None, detail));
         }
 
 

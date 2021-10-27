@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -117,6 +119,57 @@ namespace AnotherNamespace
             var typeInfo = model.GetTypeInfo(type);
             var namespaceName = typeInfo.Type?.ContainingNamespace.ToString();
             Assert.AreEqual("SomeNamespace", namespaceName);
+        }
+
+        [TestMethod]
+        public void ExtractNamespaces()
+        {
+            SourceText sourceText = SourceText.From(@"
+namespace SomeNamespace
+{
+    public partial class SomeType { }
+}
+
+namespace NamespaceGen
+{
+    public class Gen<T>
+    {
+        public T Instance { get; set; }
+    }
+}
+
+namespace AnotherNamespace
+{
+    using SomeNamespace;
+    using NamespaceGen;
+    public partial class Test
+    {
+        private Gen<Gen<SomeType>> _field;
+    }
+}", Encoding.UTF8);
+
+            var tree = CSharpSyntaxTree.ParseText(sourceText);
+            if (tree == null) { Assert.Fail("Tree is null"); return; }
+
+            var compilation = CSharpCompilation.Create("fake", new[] { tree }, null, null);
+            var model = compilation.GetSemanticModel(tree);
+
+            var field = tree.GetRoot()
+                .DescendantNodes()
+                .OfType<FieldDeclarationSyntax>()
+                .Single();
+
+            var declaration = field.Declaration;
+
+            HashSet<string> ns = Utilities.GetNamespaceChain(declaration.Type, model);
+
+            if (ns == null) { Assert.Fail(); }
+            else
+            {
+                Assert.IsTrue(ns == null
+                    ? false
+                    : ns.SequenceEqual(new[] { "NamespaceGen", "SomeNamespace" }));
+            }
         }
 
 

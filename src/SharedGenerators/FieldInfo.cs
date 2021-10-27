@@ -16,7 +16,7 @@ namespace SpeedyGenerators
         public SyntaxTokenList ClassModifiers { get; set; }
         public string? FieldName { get; set; }
         public TypeSyntax? FieldType { get; set; }
-        public string? FieldTypeNamespace { get; set; }
+        public HashSet<string>? FieldTypeNamespaces { get; set; }
         public string[]? Comments { get; set; }
         public MakePropertyArguments? AttributeArguments { get; set; }
     }
