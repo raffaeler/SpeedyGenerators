@@ -50,7 +50,7 @@ namespace SpeedyGenerators
                     var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
 
                     if (className == null) return;
-                    if (!fieldInfos.Any(f => f.AttributeArguments != null)) return;
+                    if (!fieldInfos.Any(f => f.AttributeArguments != null)) continue;
 
                     var mgr = new GeneratorManager();
                     var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
