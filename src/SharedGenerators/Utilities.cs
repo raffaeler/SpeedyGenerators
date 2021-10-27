@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SpeedyGenerators
@@ -48,16 +49,78 @@ namespace SpeedyGenerators
 
             return ns;
         }
+
+        /// <summary>
+        /// https://docs.microsoft.com/en-us/dotnet/api/microsoft.codeanalysis.csharp.syntax.typesyntax
+        /// TypeSyntax derived classes
+        /// *****************************
+        /// - ArrayTypeSyntax              int[] x;
+        /// - FunctionPointerTypeSyntax    delegate*<int, void> f
+        /// - NameSyntax                   SomeType t; (AliasQualifiedNameSyntax, QualifiedNameSyntax, SimpleNameSyntax)
+        /// - NullableTypeSyntax           SomeStruct? x;
+        /// - OmittedTypeArgumentSyntax
+        /// - PointerTypeSyntax            A* a;
+        /// - PredefinedTypeSyntax         int c;
+        /// - RefTypeSyntax                ref X x
+        /// - TupleTypeSyntax              (SomeType x, SomeOtherType y) f;
+        /// </summary>
         private static void DescendTypeArguments(TypeSyntax? typeSyntax, Action<TypeSyntax> invoker)
         {
-            if (typeSyntax == null) return;
-            invoker(typeSyntax);
+            if (typeSyntax == null || typeSyntax is PredefinedTypeSyntax) return;
+
+            if (typeSyntax is NameSyntax nameSyntax)
+            {
+                invoker(nameSyntax);
+            }
+
             if (typeSyntax is GenericNameSyntax genericNameSyntax)
             {
+                invoker(genericNameSyntax);
                 foreach (var inner in genericNameSyntax.TypeArgumentList.Arguments)
                 {
                     DescendTypeArguments(inner, invoker);
                 }
+
+                return;
+            }
+            
+            if (typeSyntax is ArrayTypeSyntax arrayTypeSyntax)
+            {
+                DescendTypeArguments(arrayTypeSyntax.ElementType, invoker);
+                return;
+            }
+            
+            if (typeSyntax is TupleTypeSyntax tupleTypeSyntax)
+            {
+                foreach (var element in tupleTypeSyntax.Elements)
+                {
+                    DescendTypeArguments(element.Type, invoker);
+                }
+
+                return;
+            }
+            
+            if (typeSyntax is NullableTypeSyntax nullableTypeSyntax)
+            {
+                DescendTypeArguments(nullableTypeSyntax.ElementType, invoker);
+                return;
+            }
+            
+            if (typeSyntax is PointerTypeSyntax pointerTypeSyntax)
+            {
+                DescendTypeArguments(pointerTypeSyntax.ElementType, invoker);
+
+                return;
+            }
+            
+            if (typeSyntax is FunctionPointerTypeSyntax functionPointerTypeSyntax)
+            {
+                foreach (var element in functionPointerTypeSyntax.ParameterList.Parameters)
+                {
+                    DescendTypeArguments(element.Type, invoker);
+                }
+
+                return;
             }
         }
 

@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "SpeedyGenerators": {
+      "commandName": "Project"
+    },
+    "RoslynDebug": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\ConsoleTest\\ConsoleTest.csproj"
+    }
+  }
+}
