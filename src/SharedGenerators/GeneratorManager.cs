@@ -44,10 +44,13 @@ namespace SpeedyGenerators
                 if (field == null || field.AttributeArguments == null ||
                     field.FieldType == null || field.FieldName == null) continue;
 
-                if (field.FieldTypeNamespace != null
-                    && field.FieldTypeNamespace != field.NamespaceName)
+                if (field.FieldTypeNamespaces != null)
                 {
-                    gen.Usings.Add(field.FieldTypeNamespace);
+                    if(field.NamespaceName != null)
+                        field.FieldTypeNamespaces.Remove(field.NamespaceName);
+                    
+                    foreach(var ns in field.FieldTypeNamespaces)
+                        gen.Usings.Add(ns);
                 }
 
                 var partialMethod = field.AttributeArguments.ExtraNotify
