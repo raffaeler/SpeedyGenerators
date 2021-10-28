@@ -170,9 +170,15 @@ The optional parameters can be, of course, combined together.
 * The original class may already have multiple partial classes. A single partial class will be generated.
 
 * Two or more classes may have the same name but in different namespaces. In this case a progressive number is added to the file containing the generated code, as the C# code generators need a unique file name for the generated code.
-* If the `INotifyPropertyChanged` interface is implemented in a base class, the generator does NOT generate the event or the `OnPropertyChanged`. In fact the event can only be invoked by a member of the same class and not from derived types.
-  In this case the generator looks (in the base class) for a method containing `PropertyChanged` in its name, with a single parameter of type string. If it is found the generated code will invoke that method.
-  If the invoker method is called differently, the generator will call the **non-existent** `OnPropertyChanged` method. This method is required and must be written by the developer. The code inside this method should just call the method in the base class that can raise the event.
+
+* If the `INotifyPropertyChanged` interface is implemented in any of the base classes, the generator finds it and of course does NOT generate the event or even the `OnPropertyChanged` method.
+
+  > Any event can only be invoked by a member of the same class and not from derived classes.
+
+  In this case the generator examines the base class where the event is declared and looks for a method containing `PropertyChanged` in its name, with a single parameter of type string.
+
+  If that is found, the generated code in the property setters will invoke that method.
+  If that method is not found (because it has a different name), the generator will call anyway the **non-existent** `OnPropertyChanged` method. This method **is required** and must be manually written by the developer. The code inside this method should just call the method in the base class that can raise the event.
 
 
 

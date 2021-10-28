@@ -4,14 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using SpeedyGenerators;
 namespace ConsoleTest
 {
-    internal partial class DerivedFromBaseViewModel : IntermediateViewModel
+    internal class IntermediateViewModel : BaseViewModel
     {
-        [MakeProperty("Abc")]
-        private int _abc;
-
-
     }
 }

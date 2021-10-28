@@ -13,6 +13,10 @@ namespace SpeedyGenerators
     [Generator]
     public partial class PropertyChangedGenerator : ISourceGenerator
     {
+        public void Initialize(GeneratorInitializationContext context)
+        {
+            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+        }
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -64,24 +68,33 @@ namespace SpeedyGenerators
             if (classTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
 
             var baseTypeSymbol = classTypeSymbol.BaseType;
-            if (baseTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
-
-            var generateEvent = baseTypeSymbol.GetMembers(ClassInfo.PropertyChangedEventName).Length == 0;
-
-            if (baseTypeSymbol.GetMembers(ClassInfo.OnPropertyChangedMethodName).Length > 0)
+            var generateEvent = true;
+            while (baseTypeSymbol != null && generateEvent)
             {
-                return (generateEvent, ClassInfo.OnPropertyChangedMethodName);
+                generateEvent = baseTypeSymbol.GetMembers(ClassInfo.PropertyChangedEventName).Length == 0;
+                if(generateEvent)
+                {
+                    baseTypeSymbol = baseTypeSymbol.BaseType;
+                    continue;
+                }
+
+                if (baseTypeSymbol.GetMembers(ClassInfo.OnPropertyChangedMethodName).Length > 0)
+                {
+                    return (generateEvent, ClassInfo.OnPropertyChangedMethodName);
+                }
+
+                var existent = baseTypeSymbol.GetMembers()
+                    .OfType<IMethodSymbol>()
+                    .Where(s => s.Name.Contains("PropertyChanged") &&
+                                s.Parameters.Length == 1 &&
+                                s.Parameters[0].Type.Name == "String" || s.Parameters[0].Type.Name == "string")
+                    .FirstOrDefault();
+
+                var guessMethod = existent != null ? existent.Name : ClassInfo.OnPropertyChangedMethodName;
+                return (generateEvent, guessMethod);
             }
 
-            var existent = baseTypeSymbol.GetMembers()
-                .OfType<IMethodSymbol>()
-                .Where(s => s.Name.Contains("PropertyChanged") &&
-                            s.Parameters.Length == 1 &&
-                            s.Parameters[0].Type.Name == "String" || s.Parameters[0].Type.Name == "string")
-                .FirstOrDefault();
-
-            var guessMethod = existent != null ? existent.Name : ClassInfo.OnPropertyChangedMethodName;
-            return (generateEvent, guessMethod);
+            return (true, ClassInfo.OnPropertyChangedMethodName);
         }
 
         /// <summary>
@@ -118,11 +131,6 @@ namespace SpeedyGenerators
 
                 return tempName;
             }
-        }
-
-        public void Initialize(GeneratorInitializationContext context)
-        {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
         }
 
         private class SyntaxReceiver : ISyntaxReceiver
@@ -206,31 +214,29 @@ namespace SpeedyGenerators
                 isEnabledByDefault: true), Location.None, detail));
         }
 
-
-        //private string _field;
-        //public string Field
-        //{
-        //    get => _field;
-        //    set
-        //    {
-        //        if (_field == value) return;
-        //        var old = _field;
-        //        _field = value;
-        //        OnPropertyChanged();
-        //        OnFieldChanged(old, _field);
-        //    }
-        //}
-
-        //partial void OnFieldChanged(string oldValue, string newValue);
-
-        //public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
-
-        //protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
-        //{
-        //    this.PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
-        //}
-
     }
-
 }
+
+//private string _field;
+//public string Field
+//{
+//    get => _field;
+//    set
+//    {
+//        if (_field == value) return;
+//        var old = _field;
+//        _field = value;
+//        OnPropertyChanged();
+//        OnFieldChanged(old, _field);
+//    }
+//}
+
+//partial void OnFieldChanged(string oldValue, string newValue);
+
+//public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
+//protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+//{
+//    this.PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+//}
 
