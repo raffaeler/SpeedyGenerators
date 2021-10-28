@@ -10,15 +10,25 @@ namespace SpeedyGenerators
 {
     internal class FieldInfo
     {
-        public SyntaxTree? SyntaxTree { get; set; }
-        public string? NamespaceName { get; set; }
-        public string? ClassName { get; set; }
-        public SyntaxTokenList ClassModifiers { get; set; }
-        public string? FieldName { get; set; }
-        public TypeSyntax? FieldType { get; set; }
-        public HashSet<string>? FieldTypeNamespaces { get; set; }
-        public string[]? Comments { get; set; }
-        public MakePropertyArguments? AttributeArguments { get; set; }
+        public FieldInfo(string fieldName, TypeSyntax fieldType,
+            string[] comments, MakePropertyArguments attributeArguments)
+        {
+            FieldName = fieldName;
+            FieldType = fieldType;
+            Comments = comments;
+            AttributeArguments = attributeArguments;
+        }
+
+        public string FieldName { get; set; }
+        public TypeSyntax FieldType { get; set; }
+        public string[] Comments { get; set; } = Array.Empty<string>();
+        public HashSet<string> FieldTypeNamespaces { get; set; } = new HashSet<string>();
+        public MakePropertyArguments AttributeArguments { get; set; }
+
+        public override string ToString()
+        {
+            return $"{FieldType} {FieldName} => {AttributeArguments.Name}";
+        }
     }
 }
 

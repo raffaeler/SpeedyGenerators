@@ -17,7 +17,7 @@ namespace ConsoleTest_Extra
         private int _x;
 
         [MakeProperty("Y")]
-        private ObservableCollection<SomeType> _y;
+        private ObservableCollection<SomeType> _y = new();
     }
 }
 

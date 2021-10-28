@@ -13,47 +13,35 @@ namespace SpeedyGenerators
     [Generator]
     public partial class PropertyChangedGenerator : ISourceGenerator
     {
+
         public void Execute(GeneratorExecutionContext context)
         {
             try
             {
                 if (context.SyntaxReceiver == null) return;
                 var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
+                var filenamesLookup = CreateFilenames(syntaxReceiver.ClassInfos);
 
-                var filenamesLookup = CreateNames(syntaxReceiver.FieldInfos);
-
-                foreach (var kvp in syntaxReceiver.FieldInfos)
+                foreach (var kvp in syntaxReceiver.ClassInfos)
                 {
-                    var fieldInfos = kvp.Value;
-                    var syntaxTree = fieldInfos[0].SyntaxTree;
-                    if (syntaxTree == null) return;
+                    var classInfo = kvp.Value;
 
+                    var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
-                    foreach (var fieldInfo in fieldInfos)
+
+                    var (generateEvent, triggerMethodName) = LookupBaseType(semanticModel, classInfo.ClassDeclaration);
+                    classInfo.GenerateEvent = generateEvent;
+                    classInfo.TriggerMethodName = triggerMethodName;
+
+                    foreach (var fieldInfo in classInfo.Fields)
                     {
-                        if (fieldInfo.FieldType == null ||
-                            fieldInfo.FieldType is PredefinedTypeSyntax) continue;
+                        if (fieldInfo.FieldType == null || fieldInfo.FieldType is PredefinedTypeSyntax) continue;
 
-                        if (fieldInfo.FieldType == null)
-                        {
-                            ReportDiagnostics(context,
-                                $"The type of the field is unknown (skipping a field)");
-                            continue;
-                        }
-
-                        fieldInfo.FieldTypeNamespaces = Utilities.GetNamespaceChain(
-                            fieldInfo.FieldType, semanticModel);
+                        Utilities.FillNamespaceChain(fieldInfo.FieldType, semanticModel, fieldInfo.FieldTypeNamespaces);
                     }
 
-                    // assume the syntax receiver provide "things" coming from the same class
-                    var className = fieldInfos.FirstOrDefault()?.ClassName;
-                    var namespaceName = fieldInfos.FirstOrDefault()?.NamespaceName;
-
-                    if (className == null) return;
-                    if (!fieldInfos.Any(f => f.AttributeArguments != null)) continue;
-
                     var mgr = new GeneratorManager();
-                    var result = mgr.GenerateINPCClass(namespaceName, className, fieldInfos);
+                    var result = mgr.GenerateINPCClass(classInfo.NamespaceName, classInfo.ClassName, classInfo);
 
                     var hintName = filenamesLookup[kvp.Key];
                     context.AddSource(hintName, result);
@@ -65,6 +53,37 @@ namespace SpeedyGenerators
             }
         }
 
+        private (bool generateEvent, string triggerName) LookupBaseType(SemanticModel model, ClassDeclarationSyntax classDeclaration)
+        {
+            var hasBaseType = classDeclaration.BaseList?.Types
+                .FirstOrDefault()
+                .IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.SimpleBaseType);
+            if (hasBaseType == null || !hasBaseType.Value) return (true, ClassInfo.OnPropertyChangedMethodName);
+
+            var classTypeSymbol = model.GetDeclaredSymbol(classDeclaration) as ITypeSymbol;
+            if (classTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
+
+            var baseTypeSymbol = classTypeSymbol.BaseType;
+            if (baseTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
+
+            var generateEvent = baseTypeSymbol.GetMembers(ClassInfo.PropertyChangedEventName).Length == 0;
+
+            if (baseTypeSymbol.GetMembers(ClassInfo.OnPropertyChangedMethodName).Length > 0)
+            {
+                return (generateEvent, ClassInfo.OnPropertyChangedMethodName);
+            }
+
+            var existent = baseTypeSymbol.GetMembers()
+                .OfType<IMethodSymbol>()
+                .Where(s => s.Name.Contains("PropertyChanged") &&
+                            s.Parameters.Length == 1 &&
+                            s.Parameters[0].Type.Name == "String" || s.Parameters[0].Type.Name == "string")
+                .FirstOrDefault();
+
+            var guessMethod = existent != null ? existent.Name : ClassInfo.OnPropertyChangedMethodName;
+            return (generateEvent, guessMethod);
+        }
+
         /// <summary>
         /// Generate a new dictionary:
         /// key => namespace.name (identical to the incoming dictionary)
@@ -72,18 +91,17 @@ namespace SpeedyGenerators
         /// The value can be just the class name or something more complex
         /// whenever multiple classes with the same name (but different namespace) exists
         /// </summary>
-        private Dictionary<string, string> CreateNames(
-            Dictionary<string, List<FieldInfo>> fieldInfos)
+        private Dictionary<string, string> CreateFilenames(
+            Dictionary<string, ClassInfo> classInfos)
         {
             int i = 0;
             Dictionary<string, string> result = new();
             HashSet<string> values = new();
-            foreach (var kvp in fieldInfos)
+            foreach (var kvp in classInfos)
             {
-                var firstItem = kvp.Value.FirstOrDefault();
-                if (firstItem == null || firstItem.ClassName == null) continue;
+                var className = kvp.Value.ClassName;
 
-                var uniqueName = GenerateUnique(values, firstItem.ClassName, ref i);
+                var uniqueName = GenerateUnique(values, className, ref i);
                 result[kvp.Key] = uniqueName;
                 values.Add(uniqueName);
             }
@@ -93,7 +111,7 @@ namespace SpeedyGenerators
             static string GenerateUnique(HashSet<string> values, string name, ref int i)
             {
                 var tempName = name;
-                while(values.Contains(tempName))
+                while (values.Contains(tempName))
                 {
                     tempName = $"{tempName}{++i}";
                 }
@@ -109,7 +127,7 @@ namespace SpeedyGenerators
 
         private class SyntaxReceiver : ISyntaxReceiver
         {
-            internal Dictionary<string, List<FieldInfo>> FieldInfos { get; } = new();
+            internal Dictionary<string, ClassInfo> ClassInfos { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
@@ -126,41 +144,42 @@ namespace SpeedyGenerators
 
                     if (attribute.attribute == null) return;
 
-                    var fieldInfo = new FieldInfo();
-                    fieldInfo.SyntaxTree = syntaxNode.SyntaxTree;
-
                     var editedClass = syntaxNode.Ancestors()
                         .OfType<ClassDeclarationSyntax>()
                         .FirstOrDefault();
 
-                    if(editedClass == null) return;
-                    fieldInfo.ClassModifiers = editedClass.Modifiers;
-                    fieldInfo.NamespaceName = editedClass.Ancestors()
+                    if (editedClass == null) return;
+
+                    var namespaceName = editedClass.Ancestors()
                         .OfType<NamespaceDeclarationSyntax>()
                         .FirstOrDefault()
                         ?.Name
                         ?.ToString();
-                    fieldInfo.NamespaceName ??= String.Empty;
+                    namespaceName ??= String.Empty;
+                    var className = editedClass.Identifier.ToString();
+                    var fullName = $"{namespaceName}.{className}";
 
-                    fieldInfo.ClassName = editedClass.Identifier.ToString();
-                    var fullName = $"{fieldInfo.NamespaceName}.{fieldInfo.ClassName}";
-                    if (!FieldInfos.TryGetValue(fullName, out List<FieldInfo> fieldInfos))
-                    {
-                        fieldInfos = new List<FieldInfo>();
-                        FieldInfos[fullName] = fieldInfos;
-                    }
-
-                    fieldInfos.Add(fieldInfo);
-
-                    fieldInfo.FieldName = fieldDeclaration.Declaration
+                    var fieldName = fieldDeclaration.Declaration
                         ?.Variables.FirstOrDefault()
                         ?.Identifier.ToString();
-                    if (fieldInfo.FieldName == null) return;
+                    if (fieldName == null) return;
 
-                    fieldInfo.FieldType = fieldDeclaration.Declaration?.Type;
+                    var fieldType = fieldDeclaration.Declaration?.Type;
+                    if (fieldType == null) return;
 
-                    fieldInfo.AttributeArguments = Extractor.ExtractAttributeArguments(attribute.attribute);
-                    fieldInfo.Comments = Extractor.ExtractComments(fieldDeclaration);
+                    var attributeArguments = Extractor.ExtractAttributeArguments(attribute.attribute);
+                    if (attributeArguments == null) return;
+
+                    var comments = Extractor.ExtractComments(fieldDeclaration);
+
+                    if (!ClassInfos.TryGetValue(fullName, out ClassInfo classInfo))
+                    {
+                        classInfo = new ClassInfo(editedClass, namespaceName, className);
+                        ClassInfos[fullName] = classInfo;
+                    }
+
+                    var fieldInfo = new FieldInfo(fieldName, fieldType, comments, attributeArguments);
+                    classInfo.Fields.Add(fieldInfo);
                 }
             }
         }

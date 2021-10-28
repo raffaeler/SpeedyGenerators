@@ -697,10 +697,7 @@ namespace SpeedyGenerators
             var body = SyntaxFactory.Block(
                     SyntaxFactory.ExpressionStatement(
                         SyntaxFactory.ConditionalAccessExpression(
-                            SyntaxFactory.MemberAccessExpression(
-                                SyntaxKind.SimpleMemberAccessExpression,
-                                        SyntaxFactory.ThisExpression(),
-                                        SyntaxFactory.IdentifierName("PropertyChanged")),
+                            SyntaxFactory.IdentifierName("PropertyChanged"),
                                     SyntaxFactory.InvocationExpression(
                                         SyntaxFactory.MemberBindingExpression(
                                             SyntaxFactory.IdentifierName("Invoke")))

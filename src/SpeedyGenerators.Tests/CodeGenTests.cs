@@ -154,7 +154,8 @@ namespace AnotherNamespace
             if (model == null) { Assert.Fail(); return; }
             var declaration = fields.Single().Declaration;
 
-            HashSet<string> ns = Utilities.GetNamespaceChain(declaration.Type, model);
+            HashSet<string> ns = new();
+            Utilities.FillNamespaceChain(declaration.Type, model, ns);
 
             if (ns == null) { Assert.Fail(); }
             else
@@ -210,19 +211,27 @@ namespace AnotherNamespace
             Assert.IsTrue(fields.Count == 10);
             if (model == null) { Assert.Fail(); return; }
 
-            HashSet<string> ns0 = Utilities.GetNamespaceChain(fields[0].Declaration.Type, model);
-            HashSet<string> ns1 = Utilities.GetNamespaceChain(fields[1].Declaration.Type, model);
-            HashSet<string> ns2 = Utilities.GetNamespaceChain(fields[2].Declaration.Type, model);
-            HashSet<string> ns3 = Utilities.GetNamespaceChain(fields[3].Declaration.Type, model);
-            HashSet<string> ns4 = Utilities.GetNamespaceChain(fields[4].Declaration.Type, model);
-            HashSet<string> ns5 = Utilities.GetNamespaceChain(fields[5].Declaration.Type, model);
-            HashSet<string> ns6 = Utilities.GetNamespaceChain(fields[6].Declaration.Type, model);
-            HashSet<string> ns7 = Utilities.GetNamespaceChain(fields[7].Declaration.Type, model);
-            HashSet<string> ns8 = Utilities.GetNamespaceChain(fields[8].Declaration.Type, model);
-            HashSet<string> ns9 = Utilities.GetNamespaceChain(fields[9].Declaration.Type, model);
-            if (ns0 == null || ns1 == null || ns2 == null || ns3 == null
-                || ns4 == null || ns5 == null || ns6 == null || ns7 == null
-                || ns8 == null || ns9 == null) { Assert.Fail(); return; }
+            HashSet<string> ns0 = new();
+            HashSet<string> ns1 = new();
+            HashSet<string> ns2 = new();
+            HashSet<string> ns3 = new();
+            HashSet<string> ns4 = new();
+            HashSet<string> ns5 = new();
+            HashSet<string> ns6 = new();
+            HashSet<string> ns7 = new();
+            HashSet<string> ns8 = new();
+            HashSet<string> ns9 = new();
+
+            Utilities.FillNamespaceChain(fields[0].Declaration.Type, model, ns0);
+            Utilities.FillNamespaceChain(fields[1].Declaration.Type, model, ns1);
+            Utilities.FillNamespaceChain(fields[2].Declaration.Type, model, ns2);
+            Utilities.FillNamespaceChain(fields[3].Declaration.Type, model, ns3);
+            Utilities.FillNamespaceChain(fields[4].Declaration.Type, model, ns4);
+            Utilities.FillNamespaceChain(fields[5].Declaration.Type, model, ns5);
+            Utilities.FillNamespaceChain(fields[6].Declaration.Type, model, ns6);
+            Utilities.FillNamespaceChain(fields[7].Declaration.Type, model, ns7);
+            Utilities.FillNamespaceChain(fields[8].Declaration.Type, model, ns8);
+            Utilities.FillNamespaceChain(fields[9].Declaration.Type, model, ns9);
 
             Assert.IsTrue(ns0.SequenceEqual(new[] { "NamespaceA1" }));
             Assert.IsTrue(ns1.SequenceEqual(new[] { "NamespaceB", "NamespaceA1" }));

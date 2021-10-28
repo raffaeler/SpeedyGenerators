@@ -12,16 +12,13 @@ namespace SpeedyGenerators
 {
     internal partial class GeneratorManager
     {
-        public SourceText GenerateINPCClass(string? @namespace, string className,
-            IList<FieldInfo> fieldInfos)
+        public SourceText GenerateINPCClass(string? @namespace, string className, ClassInfo classInfo)
         {
             ClassGenerator gen = new(@namespace, className);
-            var modifiers = fieldInfos.FirstOrDefault()?.ClassModifiers;
+            var modifiers = classInfo.ClassDeclaration.Modifiers;
             if (modifiers != default(SyntaxTokenList))
             {
-#pragma warning disable CS8629 // Nullable value type may be null.
-                gen.Modifiers = modifiers.Value;
-#pragma warning restore CS8629 // Nullable value type may be null.
+                gen.Modifiers = modifiers;
             }
 
             gen.Usings.Add("System");
@@ -32,22 +29,25 @@ namespace SpeedyGenerators
             gen.EnableNullable = true;
 
             gen.Interfaces.Add("INotifyPropertyChanged");
-            gen.Members.Add(gen.CreateEventField(
-                new[] { "Event triggered when a property changes its value" },
-                "PropertyChangedEventHandler?", "PropertyChanged", false, false));
 
-            var onPropertyChangedMethodName = "OnPropertyChanged";
-            gen.Members.Add(gen.CreateOnPropertyChanged(onPropertyChangedMethodName));
+            if (classInfo.GenerateEvent)
+            {
+                gen.Members.Add(gen.CreateEventField(
+                    new[] { "Event triggered when a property changes its value" },
+                    "PropertyChangedEventHandler?", "PropertyChanged", false, false));
 
-            foreach (var field in fieldInfos)
+                gen.Members.Add(gen.CreateOnPropertyChanged(ClassInfo.OnPropertyChangedMethodName));
+            }
+
+            foreach (var field in classInfo.Fields)
             {
                 if (field == null || field.AttributeArguments == null ||
                     field.FieldType == null || field.FieldName == null) continue;
 
                 if (field.FieldTypeNamespaces != null)
                 {
-                    if(field.NamespaceName != null)
-                        field.FieldTypeNamespaces.Remove(field.NamespaceName);
+                    if(classInfo.NamespaceName != null)
+                        field.FieldTypeNamespaces.Remove(classInfo.NamespaceName);
                     
                     foreach(var ns in field.FieldTypeNamespaces)
                         gen.Usings.Add(ns);
@@ -62,7 +62,7 @@ namespace SpeedyGenerators
                     field.FieldType,
                     field.AttributeArguments.Name,
                     field.FieldName,
-                    onPropertyChangedMethodName,
+                    classInfo.TriggerMethodName,
                     partialMethod,
                     field.AttributeArguments.CompareValues,
                     false));

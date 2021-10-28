@@ -36,18 +36,15 @@ namespace SpeedyGenerators
         /// This function is used to know which using declaration add at the beginning
         /// of a source file
         /// </summary>
-        public static HashSet<string> GetNamespaceChain(TypeSyntax? typeSyntax, SemanticModel model)
+        public static void FillNamespaceChain(TypeSyntax? typeSyntax, SemanticModel model, HashSet<string> hashSet)
         {
-            HashSet<string> ns = new();
             DescendTypeArguments(typeSyntax, t =>
             {
                 var typeInfo = model.GetTypeInfo(t);
                 var namespaceName = typeInfo.Type?.ContainingNamespace.ToString();
                 if (namespaceName == null) return;
-                ns.Add(namespaceName);
+                hashSet.Add(namespaceName);
             });
-
-            return ns;
         }
 
         /// <summary>
