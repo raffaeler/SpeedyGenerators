@@ -174,13 +174,84 @@ namespace AnotherNamespace
             Assert.IsTrue(ns9.SequenceEqual(new[] { "NamespaceA1" }));
         }
 
+        [TestMethod]
+        public void GetBaseClassInfo1()
+        {
+            SourceText sourceText = SourceText.From(@"
+namespace SomeNamespace
+{
+    public interface IFace { }
+    public partial class SomeClass : Intermediate, IFace { }
+    public partial class Intermediate : Base, IFace {}
+    public partial class Base : IFace
+    {
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected virtual void SomethingOnPropertyChangedXYZ([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null) { }
+    }
+}", Encoding.UTF8);
+
+            var tree = CSharpSyntaxTree.ParseText(sourceText);
+            if (tree == null) { Assert.Fail("Tree is null"); return; }
+
+            var compilation = CSharpCompilation.Create("fake", new[] { tree }, null, null);
+            var model = compilation.GetSemanticModel(tree);
+            if (model == null) { Assert.Fail(); return; }
+
+            var someClassDeclaration = tree.GetRoot().DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.ToString() == "SomeClass");
+            if (someClassDeclaration == null) { Assert.Fail(); return; }
+
+            var (generateEvent, triggerName) = someClassDeclaration.GetPropertyChangedGenerationInfo(model);
+            Assert.IsFalse(generateEvent);
+            Assert.AreEqual("SomethingOnPropertyChangedXYZ", triggerName);
+        }
+
+
+        [TestMethod]
+        public void GetBaseClassInfo2()
+        {
+            SourceText sourceText = SourceText.From(@"
+namespace SomeNamespace
+{
+    public interface IFace { }
+    public partial class SomeClass : Intermediate, IFace { }
+    public partial class Intermediate : Base, IFace {}
+    public partial class Base : IFace
+    {
+    }
+}", Encoding.UTF8);
+
+            var tree = CSharpSyntaxTree.ParseText(sourceText);
+            if (tree == null) { Assert.Fail("Tree is null"); return; }
+
+            var compilation = CSharpCompilation.Create("fake", new[] { tree }, null, null);
+            var model = compilation.GetSemanticModel(tree);
+            if (model == null) { Assert.Fail(); return; }
+
+            var someClassDeclaration = tree.GetRoot().DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.ToString() == "SomeClass");
+            if (someClassDeclaration == null) { Assert.Fail(); return; }
+
+            var (generateEvent, triggerName) = someClassDeclaration.GetPropertyChangedGenerationInfo(model);
+            Assert.IsTrue(generateEvent);
+            Assert.AreEqual("OnPropertyChanged", triggerName);
+        }
+
+
+
 
 
 
         private (IList<FieldDeclarationSyntax> fields, SemanticModel? model) GetFields(SourceText sourceText)
         {
             var tree = CSharpSyntaxTree.ParseText(sourceText);
-            if (tree == null) { Assert.Fail("Tree is null"); return (new List<FieldDeclarationSyntax>(), null); }
+            if (tree == null)
+            {
+                Assert.Fail("Tree is null");
+                return (new List<FieldDeclarationSyntax>(), null);
+            }
 
             var compilation = CSharpCompilation.Create("fake", new[] { tree }, null, null);
             var model = compilation.GetSemanticModel(tree);

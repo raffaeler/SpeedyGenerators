@@ -33,7 +33,8 @@ namespace SpeedyGenerators
                     var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
 
-                    var (generateEvent, triggerMethodName) = LookupBaseType(semanticModel, classInfo.ClassDeclaration);
+                    var (generateEvent, triggerMethodName) =
+                        classInfo.ClassDeclaration.GetPropertyChangedGenerationInfo(semanticModel);
                     classInfo.GenerateEvent = generateEvent;
                     classInfo.TriggerMethodName = triggerMethodName;
 
@@ -55,46 +56,6 @@ namespace SpeedyGenerators
             {
                 ReportDiagnostics(context, err);
             }
-        }
-
-        private (bool generateEvent, string triggerName) LookupBaseType(SemanticModel model, ClassDeclarationSyntax classDeclaration)
-        {
-            if(!classDeclaration.HasBaseType()) return (true, ClassInfo.OnPropertyChangedMethodName);
-
-            var classTypeSymbol = model.GetDeclaredSymbol(classDeclaration) as ITypeSymbol;
-            if (classTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
-
-            var baseTypeSymbol = classTypeSymbol.BaseType;
-            var generateEvent = true;
-            while (baseTypeSymbol != null && generateEvent)
-            {
-                generateEvent = baseTypeSymbol.GetMembers(ClassInfo.PropertyChangedEventName).Length == 0;
-                if(generateEvent)
-                {
-                    baseTypeSymbol = baseTypeSymbol.BaseType;
-                    continue;
-                }
-
-                if (baseTypeSymbol.GetMembers(ClassInfo.OnPropertyChangedMethodName).Length > 0)
-                {
-                    return (generateEvent, ClassInfo.OnPropertyChangedMethodName);
-                }
-
-                var existent = baseTypeSymbol.GetMembers()
-                    .OfType<IMethodSymbol>()
-                    .Where(s => s.Name.Contains("PropertyChanged") &&
-                                s.Parameters.Length == 1 &&
-                                (s.Parameters[0].Type.Name == "String" ||
-                                s.Parameters[0].Type.Name == "string"))
-                    .FirstOrDefault();
-
-                var guessMethod = existent != null
-                    ? existent.Name
-                    : ClassInfo.OnPropertyChangedMethodName;
-                return (generateEvent, guessMethod);
-            }
-
-            return (true, ClassInfo.OnPropertyChangedMethodName);
         }
 
         /// <summary>
