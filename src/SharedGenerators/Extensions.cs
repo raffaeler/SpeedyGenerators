@@ -30,7 +30,7 @@ namespace SpeedyGenerators
             var baseTypeSymbol = classTypeSymbol.BaseType;
             while (baseTypeSymbol != null)
             {
-                var found= func(baseTypeSymbol);
+                var found = func(baseTypeSymbol);
                 if (found) return baseTypeSymbol;
                 baseTypeSymbol = baseTypeSymbol.BaseType;
             }
@@ -46,13 +46,18 @@ namespace SpeedyGenerators
 
         public static IMethodSymbol? GetBestMatchForPropertyChangedMethod(this INamedTypeSymbol symbol)
         {
-            return symbol.GetMembers()
+            var candidates = symbol.GetMembers()
                     .OfType<IMethodSymbol>()
                     .Where(s => s.Name.Contains("PropertyChanged") &&
                                 s.Parameters.Length == 1 &&
                                 (s.Parameters[0].Type.Name == "String" ||
                                 s.Parameters[0].Type.Name == "string"))
-                    .FirstOrDefault();
+                    .ToList();
+            if (candidates.Count == 0) return null;
+            if (candidates.Count == 1) return candidates[0];
+            var onPropertyChanged = candidates.FirstOrDefault(c => c.Name.StartsWith(ClassInfo.OnPropertyChangedMethodName));
+            if(onPropertyChanged != null) return onPropertyChanged;
+            return candidates.First();
         }
 
         public static (bool generateEvent, string triggerName) GetPropertyChangedGenerationInfo(
