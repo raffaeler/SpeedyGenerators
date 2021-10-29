@@ -43,7 +43,7 @@ jobs:
 
     - name: Sign
       run: |
-        cat ${{ secrets.RAFCODESIGNB64 }} | base64 --decode > cert.pfx
+        echo ${{ secrets.RAFCODESIGNB64 }} | base64 --decode > cert.pfx
         dotnet nuget sign SpeedyGenerators.${VERSION}.nupkg --certificate-path cert.pfx --certificate-password ${{ secrets.RAFCODESIGNPWD }}
       
     - name: Push
