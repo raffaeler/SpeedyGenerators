@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)ClassGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClassInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Diagnostics.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Extensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extractor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FieldInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GeneratorManager.cs" />

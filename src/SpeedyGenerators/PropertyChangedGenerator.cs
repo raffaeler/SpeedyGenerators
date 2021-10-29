@@ -59,10 +59,7 @@ namespace SpeedyGenerators
 
         private (bool generateEvent, string triggerName) LookupBaseType(SemanticModel model, ClassDeclarationSyntax classDeclaration)
         {
-            var hasBaseType = classDeclaration.BaseList?.Types
-                .FirstOrDefault()
-                .IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.SimpleBaseType);
-            if (hasBaseType == null || !hasBaseType.Value) return (true, ClassInfo.OnPropertyChangedMethodName);
+            if(!classDeclaration.HasBaseType()) return (true, ClassInfo.OnPropertyChangedMethodName);
 
             var classTypeSymbol = model.GetDeclaredSymbol(classDeclaration) as ITypeSymbol;
             if (classTypeSymbol == null) return (true, ClassInfo.OnPropertyChangedMethodName);
@@ -87,10 +84,13 @@ namespace SpeedyGenerators
                     .OfType<IMethodSymbol>()
                     .Where(s => s.Name.Contains("PropertyChanged") &&
                                 s.Parameters.Length == 1 &&
-                                s.Parameters[0].Type.Name == "String" || s.Parameters[0].Type.Name == "string")
+                                (s.Parameters[0].Type.Name == "String" ||
+                                s.Parameters[0].Type.Name == "string"))
                     .FirstOrDefault();
 
-                var guessMethod = existent != null ? existent.Name : ClassInfo.OnPropertyChangedMethodName;
+                var guessMethod = existent != null
+                    ? existent.Name
+                    : ClassInfo.OnPropertyChangedMethodName;
                 return (generateEvent, guessMethod);
             }
 
