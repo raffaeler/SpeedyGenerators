@@ -1,5 +1,7 @@
 # SpeedyGenerators
 
+![Nuget](https://img.shields.io/nuget/v/SpeedyGenerators)  ![Nuget](https://img.shields.io/nuget/dt/SpeedyGenerators)  ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/raffaeler/SpeedyGenerators)  ![GitHub release (latest by date)](https://img.shields.io/github/v/release/raffaeler/SpeedyGenerators) 
+
 C# code generators are new to C# version 9.
 
 Apart from straightforward cases, the greatest majority of the code is generated using the Roslyn (C# compiler) API.

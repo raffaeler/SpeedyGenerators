@@ -40,6 +40,12 @@ jobs:
       
     - name: Pack
       run: dotnet pack -c Release /p:Version=${VERSION} -p:PackageVersion=${VERSION} --no-build --output .
+
+# this signing step does not work
+#    - name: Sign
+#      run: |
+#        echo ${{ secrets.RAFCODESIGNB64 }} | base64 --decode > cert.pfx
+#        dotnet nuget sign SpeedyGenerators.${VERSION}.nupkg --certificate-path cert.pfx --certificate-password ${{ secrets.RAFCODESIGNPWD }}
       
     - name: Push
       run: dotnet nuget push SpeedyGenerators.${VERSION}.nupkg --source https://nuget.pkg.github.com/raffaeler/index.json --api-key ${GITHUB_TOKEN}
