@@ -397,7 +397,7 @@ namespace SpeedyGenerators
 
         internal PropertyDeclarationSyntax CreatePropertyWithPropertyChanged(
             string[]? commentLines, TypeSyntax typeSyntax, string propertyName, string fieldName,
-            string propertyChangedMethod, string? partialMethodName, bool compareValues,
+            string propertyChangedMethod, string? partialMethodName, string? globalPartialMethodName, bool compareValues,
             bool isOverride = false)
         {
             if (commentLines == null) commentLines = Array.Empty<string>();
@@ -431,13 +431,20 @@ namespace SpeedyGenerators
             setterStatements.Add(CreateSetFieldValue(fieldName));
             
             // OnPropertyChanged();
-            setterStatements.Add(CreateCallOnPropChanged(propertyChangedMethod));
+            setterStatements.Add(CreateCallMethod(propertyChangedMethod));
 
             if(!string.IsNullOrEmpty(partialMethodName))
             {
                 // OnFieldChanged(old, _field);
 #pragma warning disable CS8604 // Possible null reference argument.
-                setterStatements.Add(CreateCallMethod2(partialMethodName, localOld, fieldName));
+                setterStatements.Add(CreateCallMethod(partialMethodName, localOld, fieldName));
+#pragma warning restore CS8604 // Possible null reference argument.
+            }
+
+            if (!string.IsNullOrEmpty(globalPartialMethodName))
+            {
+#pragma warning disable CS8604 // Possible null reference argument.
+                setterStatements.Add(CreateCallMethod(globalPartialMethodName, CreateStringLiteralExpression(propertyName)));
 #pragma warning restore CS8604 // Possible null reference argument.
             }
 
@@ -469,11 +476,6 @@ namespace SpeedyGenerators
                         SyntaxFactory.IdentifierName(fieldName),
                         SyntaxFactory.IdentifierName("value"))).NormalizeWhitespace();
 
-        public ExpressionStatementSyntax CreateCallOnPropChanged(string propertyChangedMethod)
-            => SyntaxFactory.ExpressionStatement(
-                    SyntaxFactory.InvocationExpression(
-                        SyntaxFactory.IdentifierName(propertyChangedMethod)));
-
         /// <summary>
         /// if (_field == value) return;
         /// </summary>
@@ -502,18 +504,24 @@ namespace SpeedyGenerators
 
         }
 
-        // On{PropName}Changed(old, _field);
-        public ExpressionStatementSyntax CreateCallMethod2(string methodName,
-            string argName1, string argName2)
-        {
-            var args = new[]
-            {
-                SyntaxFactory.IdentifierName(argName1),
-                SyntaxFactory.IdentifierName(argName2),
-            };
+        public ExpressionStatementSyntax CreateCallMethod(string methodName)
+            => SyntaxFactory.ExpressionStatement(
+                    SyntaxFactory.InvocationExpression(
+                        SyntaxFactory.IdentifierName(methodName)));
 
+        // MethodName(arg1, arg2);
+        public ExpressionStatementSyntax CreateCallMethod(string methodName, params string[] argNames)
+        {
+            return CreateCallMethod(methodName, argNames
+                .Select(a => SyntaxFactory.IdentifierName(a))
+                .ToArray());
+        }
+
+        // MethodName(arg1, arg2, ...);
+        public ExpressionStatementSyntax CreateCallMethod(string methodName, params ExpressionSyntax[] arguments)
+        {
             var argumentList = SyntaxFactory.ArgumentList(
-                SyntaxFactory.SeparatedList(args.Select(a => SyntaxFactory.Argument(a))));
+                SyntaxFactory.SeparatedList(arguments.Select(a => SyntaxFactory.Argument(a))));
 
             return SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.InvocationExpression(
@@ -633,24 +641,45 @@ namespace SpeedyGenerators
         }
 
         public MethodDeclarationSyntax CreatePartialMethod(string partialMethodName,
-            TypeSyntax returnType, params (TypeSyntax typeSyntax, string argName)[] arguments)
+            TypeSyntax returnType, IEnumerable<ParameterSyntax> parameters)
         {
-            var pars = arguments
-                .Select(p =>
-                    SyntaxFactory.Parameter(
-                        SyntaxFactory.Identifier(p.argName))
-                        .WithType(p.typeSyntax))
-                .ToArray();
-            
             var declaration = SyntaxFactory.MethodDeclaration(returnType, partialMethodName)
                 .WithModifiers(SyntaxFactory.TokenList(
                     SyntaxFactory.Token(SyntaxKind.PartialKeyword)
                     ))
                 .WithParameterList(SyntaxFactory.ParameterList(
-                    SyntaxFactory.SeparatedList(pars)))
+                    SyntaxFactory.SeparatedList(parameters)))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
             return declaration;
+        }
+
+        public IEnumerable<ParameterSyntax> CreateParameters(params (TypeSyntax typeSyntax, string argName)[] arguments)
+        {
+            return arguments
+                .Select(p =>
+                    SyntaxFactory.Parameter(
+                        SyntaxFactory.Identifier(p.argName))
+                        .WithType(p.typeSyntax))
+                .ToArray();
+        }
+
+        public ParameterSyntax CreateParameterForCallerMemberName(string parameterName)
+        {
+            // [CallerMemberName] string parameterName = null
+            // where 'parameterName' is whatever (non-validated) string
+            return SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName))
+                .WithAttributeLists(SyntaxFactory.SingletonList(
+                    SyntaxFactory.AttributeList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Attribute(
+                                SyntaxFactory.IdentifierName("CallerMemberName"))))))
+                .WithType(SyntaxFactory.NullableType(
+                    SyntaxFactory.PredefinedType(
+                        SyntaxFactory.Token(SyntaxKind.StringKeyword))))
+                .WithDefault(SyntaxFactory.EqualsValueClause(
+                    SyntaxFactory.LiteralExpression(
+                        SyntaxKind.NullLiteralExpression)));
         }
 
         /// <summary>
@@ -667,18 +696,7 @@ namespace SpeedyGenerators
             var paramName = "propertyName";
 
             // [CallerMemberName] string propertyName = null
-            var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier(paramName))
-                .WithAttributeLists(SyntaxFactory.SingletonList(
-                    SyntaxFactory.AttributeList(
-                        SyntaxFactory.SingletonSeparatedList(
-                            SyntaxFactory.Attribute(
-                                SyntaxFactory.IdentifierName("CallerMemberName"))))))
-                .WithType(SyntaxFactory.NullableType(
-                    SyntaxFactory.PredefinedType(
-                        SyntaxFactory.Token(SyntaxKind.StringKeyword))))
-                .WithDefault(SyntaxFactory.EqualsValueClause(
-                    SyntaxFactory.LiteralExpression(
-                        SyntaxKind.NullLiteralExpression)));
+            var parameter = CreateParameterForCallerMemberName(paramName);
 
             var args = SyntaxFactory.ArgumentList(
                 SyntaxFactory.SeparatedList<ArgumentSyntax>(new[]

@@ -39,6 +39,10 @@ namespace ConsoleTest
             //Name = "Raf";
             //Name = "Raf";
             //Name = "Hello";
+
+            FakeViewModel fakeViewModel = new();
+            fakeViewModel.FirstName = "aaa";
+            fakeViewModel.LastName = "nnn";
         }
 
         //partial void OnStatusChanged(int oldValue, int newValue)

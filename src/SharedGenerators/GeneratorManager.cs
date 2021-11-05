@@ -12,6 +12,8 @@ namespace SpeedyGenerators
 {
     internal partial class GeneratorManager
     {
+        public const string GlobalPartialMethod = "OnOnePropertyHasChanged";
+
         public SourceText GenerateINPCClass(string? @namespace, string className, ClassInfo classInfo)
         {
             ClassGenerator gen = new(@namespace, className);
@@ -46,10 +48,10 @@ namespace SpeedyGenerators
 
                 if (field.FieldTypeNamespaces != null)
                 {
-                    if(classInfo.NamespaceName != null)
+                    if (classInfo.NamespaceName != null)
                         field.FieldTypeNamespaces.Remove(classInfo.NamespaceName);
-                    
-                    foreach(var ns in field.FieldTypeNamespaces)
+
+                    foreach (var ns in field.FieldTypeNamespaces)
                         gen.Usings.Add(ns);
                 }
 
@@ -64,16 +66,20 @@ namespace SpeedyGenerators
                     field.FieldName,
                     classInfo.TriggerMethodName,
                     partialMethod,
+                    GlobalPartialMethod,
                     field.AttributeArguments.CompareValues,
                     false));
 
                 if (partialMethod != null)
                 {
-                    gen.Members.Add(gen.CreatePartialMethod(partialMethod, gen.GetVoidTypeName(),
-                        (field.FieldType, "oldValue"), (field.FieldType, "newValue")));
+                    var parameters = gen.CreateParameters((field.FieldType, "oldValue"), (field.FieldType, "newValue")).ToList();
+                    gen.Members.Add(gen.CreatePartialMethod(partialMethod, gen.GetVoidTypeName(), parameters));
                 }
             }
 
+            // partial void OnOnePropertyHasChanged([CallerMemberName] string? propertyName = null);
+            var globalPartialmethodParameters = gen.CreateParameters((gen.GetTypeName("string"), "propertyName"));
+            gen.Members.Add(gen.CreatePartialMethod(GlobalPartialMethod, gen.GetVoidTypeName(), globalPartialmethodParameters));
 
             //gen.Members.Add(gen.CreateField(
             //    new[] { "comment" }, "string", "_test", null, true, false));

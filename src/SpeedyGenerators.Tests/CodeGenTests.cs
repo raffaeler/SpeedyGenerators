@@ -26,7 +26,7 @@ namespace SpeedyGenerators.Tests
         public void CreateCallOnPropChanged()
         {
             var mgr = new ClassGenerator("FakeNS", "FakeClass");
-            var statement = mgr.CreateCallOnPropChanged("OnPropertyChanged");
+            var statement = mgr.CreateCallMethod("OnPropertyChanged");
             Assert.AreEqual("OnPropertyChanged();", statement.ToString());
         }
 
@@ -50,7 +50,7 @@ namespace SpeedyGenerators.Tests
         public void CreateCallMethod2()
         {
             var mgr = new ClassGenerator("FakeNS", "FakeClass");
-            var statement = mgr.CreateCallMethod2("OnFieldChanged", "oldValue", "_field");
+            var statement = mgr.CreateCallMethod("OnFieldChanged", "oldValue", "_field");
             Assert.AreEqual("OnFieldChanged(oldValue, _field);", statement.ToString());
         }
 
@@ -65,6 +65,7 @@ namespace SpeedyGenerators.Tests
                     "_status",
                     "OnPropertyChanged",
                     "OnStatusChanged",
+                    "OnOnePropertyHasChanged",
                     true,
                     false);
 
@@ -80,8 +81,22 @@ namespace SpeedyGenerators.Tests
         _status = value;
         OnPropertyChanged();
         OnStatusChanged(oldValue, _status);
+        OnOnePropertyHasChanged(""Status"");
     }
 }";
+            Assert.AreEqual(Normalize(expected), Normalize(statement.ToString()));
+        }
+
+        [TestMethod]
+        public void CreateGlobalPartialMethod()
+        {
+            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var globalPartialmethodParameters = mgr.CreateParameters((mgr.GetTypeName("string"), "propertyName"));
+            var statement = mgr.CreatePartialMethod("OnOnePropertyHasChanged", mgr.GetVoidTypeName(), globalPartialmethodParameters)
+                .NormalizeWhitespace();
+
+            // ToString does not include the leading trivias (comments)
+            var expected = @"partial void OnOnePropertyHasChanged(string propertyName);";
             Assert.AreEqual(Normalize(expected), Normalize(statement.ToString()));
         }
 

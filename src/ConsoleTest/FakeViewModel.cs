@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,6 +24,16 @@ namespace ConsoleTest
         [MakeProperty("Description", true, true)]
         private string? _description;
 
+        [MakeProperty("FirstName", true)]
+        private string? _firstName;
+
+        [MakeProperty("LastName", true)]
+        private string? _lastName;
+
+        partial void OnOnePropertyHasChanged(string propertyName)
+        {
+            Console.WriteLine(propertyName);
+        }
 
         [MakeProperty("ViewModels")]
         private ObservableCollection<FakeViewModel> _viewModels = new();
