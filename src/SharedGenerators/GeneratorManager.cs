@@ -12,8 +12,6 @@ namespace SpeedyGenerators
 {
     internal partial class GeneratorManager
     {
-        public const string GlobalPartialMethod = "OnOnePropertyHasChanged";
-
         public SourceText GenerateINPCClass(string? @namespace, string className, ClassInfo classInfo)
         {
             ClassGenerator gen = new(@namespace, className);
@@ -55,9 +53,13 @@ namespace SpeedyGenerators
                         gen.Usings.Add(ns);
                 }
 
-                var partialMethod = field.AttributeArguments.ExtraNotify
-                    ? $"On{field.AttributeArguments.Name}Changed"
-                    : null;
+                string? partialMethod = null;
+                string? globalPartialMethod = null;
+                if (field.AttributeArguments.ExtraNotify)
+                {
+                    partialMethod = $"On{field.AttributeArguments.Name}Changed";
+                    globalPartialMethod = classInfo.GlobalPartialMethodName;
+                }
 
                 gen.Members.Add(gen.CreatePropertyWithPropertyChanged(
                     field.Comments,
@@ -66,20 +68,29 @@ namespace SpeedyGenerators
                     field.FieldName,
                     classInfo.TriggerMethodName,
                     partialMethod,
-                    GlobalPartialMethod,
+                    globalPartialMethod,
                     field.AttributeArguments.CompareValues,
                     false));
 
                 if (partialMethod != null)
                 {
                     var parameters = gen.CreateParameters((field.FieldType, "oldValue"), (field.FieldType, "newValue")).ToList();
-                    gen.Members.Add(gen.CreatePartialMethod(partialMethod, gen.GetVoidTypeName(), parameters));
+                    gen.Members.Add(gen.CreatePartialMethod(Array.Empty<string>(), partialMethod, gen.GetVoidTypeName(), parameters));
                 }
             }
 
-            // partial void OnOnePropertyHasChanged([CallerMemberName] string? propertyName = null);
-            var globalPartialmethodParameters = gen.CreateParameters((gen.GetTypeName("string"), "propertyName"));
-            gen.Members.Add(gen.CreatePartialMethod(GlobalPartialMethod, gen.GetVoidTypeName(), globalPartialmethodParameters));
+            if (!string.IsNullOrEmpty(classInfo.GlobalPartialMethodName))
+            {
+                // partial void OnOnePropertyHasChanged([CallerMemberName] string? propertyName = null);
+                var comments = new[]
+                {
+                    "This partial method is called from all the properties generated with the 'ExtraNotify' flag"
+                };
+                var globalPartialmethodParameters = gen.CreateParameters((gen.GetTypeName("string"), "propertyName"));
+                var methodDeclaration = gen.CreatePartialMethod(comments,
+                        classInfo.GlobalPartialMethodName, gen.GetVoidTypeName(), globalPartialmethodParameters);
+                gen.Members.Add(methodDeclaration);
+            }
 
             //gen.Members.Add(gen.CreateField(
             //    new[] { "comment" }, "string", "_test", null, true, false));

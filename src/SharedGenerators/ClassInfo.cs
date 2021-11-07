@@ -12,26 +12,31 @@ namespace SpeedyGenerators
     {
         public static readonly string PropertyChangedEventName = "PropertyChanged";
         public static readonly string OnPropertyChangedMethodName = "OnPropertyChanged";
+        public static readonly string DefaultGlobalPartialMethodName = "OnOnePropertyHasChanged";
 
         public ClassInfo(ClassDeclarationSyntax classDeclaration, string namespaceName, string className)
         {
             ClassDeclaration = classDeclaration;
             NamespaceName = namespaceName;
             ClassName = className;
+            FullName = $"{NamespaceName}.{ClassName}";
         }
 
-        public ClassDeclarationSyntax ClassDeclaration { get; set; }
-        public string NamespaceName { get; set; }
-        public string ClassName { get; set; }
+        public ClassDeclarationSyntax ClassDeclaration { get; private set; }
+        public string NamespaceName { get; private set; }
+        public string ClassName { get; private set; }
+        public string FullName { get; private set; }
+        public List<string> FullNameBaseTypes { get; } = new();
 
         public bool GenerateEvent { get; set; } = true;
         public string TriggerMethodName { get; set; } = OnPropertyChangedMethodName;
+        public string GlobalPartialMethodName { get; set; } = DefaultGlobalPartialMethodName;
 
-        public List<FieldInfo> Fields { get; } = new List<FieldInfo>();
+        public List<FieldInfo> Fields { get; } = new();
 
         public override string ToString()
         {
-            return $"{NamespaceName}.{ClassName} ({Fields.Count})";
+            return $"{FullName} ({Fields.Count})";
         }
     }
 }

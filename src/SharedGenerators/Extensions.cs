@@ -21,6 +21,26 @@ namespace SpeedyGenerators
             return false;
         }
 
+        public static string GetFullTypeName(this INamedTypeSymbol symbol)
+            => $"{symbol.ContainingNamespace.Name}.{symbol.Name}";
+
+        public static IList<INamedTypeSymbol> GetBaseTypes(this ClassDeclarationSyntax classDeclaration,
+            SemanticModel model)
+        {
+            List<INamedTypeSymbol> result = new();
+            var classTypeSymbol = model.GetDeclaredSymbol(classDeclaration) as ITypeSymbol;
+            if (classTypeSymbol == null) return result;
+
+            var baseTypeSymbol = classTypeSymbol.BaseType;
+            while (baseTypeSymbol != null)
+            {
+                result.Add(baseTypeSymbol);
+                baseTypeSymbol = baseTypeSymbol.BaseType;
+            }
+
+            return result;
+        }
+
         public static INamedTypeSymbol? SearchBaseTypes(this ClassDeclarationSyntax classDeclaration,
             SemanticModel model, Func<INamedTypeSymbol, bool> func)
         {
@@ -56,7 +76,7 @@ namespace SpeedyGenerators
             if (candidates.Count == 0) return null;
             if (candidates.Count == 1) return candidates[0];
             var onPropertyChanged = candidates.FirstOrDefault(c => c.Name.StartsWith(ClassInfo.OnPropertyChangedMethodName));
-            if(onPropertyChanged != null) return onPropertyChanged;
+            if (onPropertyChanged != null) return onPropertyChanged;
             return candidates.First();
         }
 
@@ -72,6 +92,28 @@ namespace SpeedyGenerators
             if (candidateMethod == null) return (false, ClassInfo.OnPropertyChangedMethodName);
 
             return (false, candidateMethod.Name);
+        }
+
+        public static bool CanGenerateGlobalPartialMethod(this ClassDeclarationSyntax classDeclaration, SemanticModel model,
+            string globalPartialMethodName)
+        {
+            var baseClassDeclaringGlobalPartialMethod = classDeclaration.SearchBaseTypes(model, symbol =>
+            {
+                var members = symbol.GetMembers(globalPartialMethodName);
+                foreach (var member in members.OfType<IMethodSymbol>())
+                {
+                    if (member.ReturnType.Name != "void") continue;
+                    if (member.Parameters.Length != 1) continue;
+                    var parameter = member.Parameters[0];
+                    if (parameter.Type.Name != "string" && parameter.Type.Name != "String") continue;
+
+                    return true;
+                }
+
+                return false;
+            });
+
+            return baseClassDeclaringGlobalPartialMethod == null;
         }
 
     }

@@ -5,13 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 
 using SpeedyGenerators;
-
 namespace ConsoleTest
 {
-    internal partial class IntermediateViewModel : BaseViewModel
+    internal partial class Test1DerivedClass : Test1BaseClass
     {
-        [MakeProperty("Something", true)]
-        private int _something;
+        [MakeProperty("Y")]
+        private int _y;
 
     }
 }

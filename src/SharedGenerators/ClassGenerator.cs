@@ -231,13 +231,29 @@ namespace SpeedyGenerators
             return initializer;
         }
 
+        public SyntaxToken CreateModifier(SyntaxKind kind, IEnumerable<string> commentLines)
+        {
+            if (commentLines.Any())
+            {
+                SyntaxTrivia comment = CreateXmlComment(true, commentLines);
+                return SyntaxFactory.Token(
+                        SyntaxFactory.TriviaList(comment),
+                        kind,
+                        SyntaxFactory.TriviaList());
+            }
+
+            return SyntaxFactory.Token(kind);
+        }
+
         /// <summary>
         /// </summary>
         internal FieldDeclarationSyntax CreateField(IEnumerable<string> commentLines,
             string type, string variableName, ExpressionSyntax? initializer,
             bool isPrivate, bool isStatic)
         {
-            SyntaxTrivia comment = CreateXmlComment(true, commentLines);
+            SyntaxKind visibility = isPrivate ? SyntaxKind.PrivateKeyword : SyntaxKind.PublicKeyword;
+
+            var modifier = CreateModifier(visibility, commentLines);
 
             var typeName = SyntaxFactory.ParseTypeName(type);
 
@@ -249,15 +265,8 @@ namespace SpeedyGenerators
             var variableDeclaration = SyntaxFactory.VariableDeclaration(typeName)
                 .AddVariables(declarator);
 
-            SyntaxKind visibility = isPrivate ? SyntaxKind.PrivateKeyword : SyntaxKind.PublicKeyword;
-
             var field = SyntaxFactory.FieldDeclaration(variableDeclaration)
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(
-                        SyntaxFactory.TriviaList(comment),
-                        visibility,
-                        SyntaxFactory.TriviaList())))
-                //.AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                .WithModifiers(SyntaxFactory.TokenList(modifier))
                 ;
             if (isStatic)
             {
@@ -271,7 +280,9 @@ namespace SpeedyGenerators
         internal EventFieldDeclarationSyntax CreateEventField(IEnumerable<string> commentLines,
             string delegateType, string variableName, bool isPrivate, bool isStatic)
         {
-            SyntaxTrivia comment = CreateXmlComment(true, commentLines);
+            SyntaxKind visibility = isPrivate ? SyntaxKind.PrivateKeyword : SyntaxKind.PublicKeyword;
+
+            var modifier = CreateModifier(visibility, commentLines);
 
             var typeName = SyntaxFactory.ParseTypeName(delegateType);
 
@@ -279,16 +290,8 @@ namespace SpeedyGenerators
                 .AddVariables(SyntaxFactory.VariableDeclarator(variableName)
                 );
 
-            SyntaxKind visibility = isPrivate ? SyntaxKind.PrivateKeyword : SyntaxKind.PublicKeyword;
-
             var field = SyntaxFactory.EventFieldDeclaration(variableDeclaration)
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(
-                        SyntaxFactory.TriviaList(comment),
-                        visibility,
-                        SyntaxFactory.TriviaList())))
-                //.AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
-                ;
+                .WithModifiers(SyntaxFactory.TokenList(modifier));
             if (isStatic)
             {
                 field = field
@@ -311,8 +314,6 @@ namespace SpeedyGenerators
         internal PropertyDeclarationSyntax CreatePropertyWithInitializer(string[] commentLines,
             NameSyntax typeName, string propertyName, ExpressionSyntax? initializer, bool isOverride = false)
         {
-            SyntaxTrivia comment = CreateXmlComment(true, commentLines);
-
             //var type2 = SyntaxFactory.IdentifierName(
             //    SyntaxFactory.Identifier(
             //        SyntaxFactory.TriviaList(comment),
@@ -321,14 +322,10 @@ namespace SpeedyGenerators
             //typeName = typeName.(comment);
 
             var propertyDeclaration = SyntaxFactory.PropertyDeclaration(typeName,
-                SyntaxFactory.Identifier(propertyName))
-                ;
+                SyntaxFactory.Identifier(propertyName));
 
-            var modifiers = new List<SyntaxToken>();
-            modifiers.Add(SyntaxFactory.Token(
-                        SyntaxFactory.TriviaList(comment),
-                        SyntaxKind.PublicKeyword,
-                        SyntaxFactory.TriviaList()));
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
             if (isOverride) modifiers.Add(SyntaxFactory.Token(SyntaxKind.OverrideKeyword));
 
             propertyDeclaration = propertyDeclaration
@@ -356,8 +353,6 @@ namespace SpeedyGenerators
         internal PropertyDeclarationSyntax CreatePropertyWithArrowCallingBase(string[] commentLines,
             NameSyntax typeName, string propertyName, bool isOverride = false)
         {
-            SyntaxTrivia comment = CreateXmlComment(true, commentLines);
-
             //var type2 = SyntaxFactory.IdentifierName(
             //    SyntaxFactory.Identifier(
             //        SyntaxFactory.TriviaList(comment),
@@ -369,11 +364,8 @@ namespace SpeedyGenerators
                 SyntaxFactory.Identifier(propertyName))
                 ;
 
-            var modifiers = new List<SyntaxToken>();
-            modifiers.Add(SyntaxFactory.Token(
-                        SyntaxFactory.TriviaList(comment),
-                        SyntaxKind.PublicKeyword,
-                        SyntaxFactory.TriviaList()));
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
             if (isOverride) modifiers.Add(SyntaxFactory.Token(SyntaxKind.OverrideKeyword));
 
             //  => base.Links;
@@ -396,21 +388,15 @@ namespace SpeedyGenerators
         }
 
         internal PropertyDeclarationSyntax CreatePropertyWithPropertyChanged(
-            string[]? commentLines, TypeSyntax typeSyntax, string propertyName, string fieldName,
+            string[] commentLines, TypeSyntax typeSyntax, string propertyName, string fieldName,
             string propertyChangedMethod, string? partialMethodName, string? globalPartialMethodName, bool compareValues,
             bool isOverride = false)
         {
-            if (commentLines == null) commentLines = Array.Empty<string>();
-            SyntaxTrivia comment = CreateXmlComment(true, commentLines);
-
             var propertyDeclaration = SyntaxFactory.PropertyDeclaration(typeSyntax,
                 SyntaxFactory.Identifier(propertyName));
 
-            var modifiers = new List<SyntaxToken>();
-            modifiers.Add(SyntaxFactory.Token(
-                        SyntaxFactory.TriviaList(comment),
-                        SyntaxKind.PublicKeyword,
-                        SyntaxFactory.TriviaList()));
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
             if (isOverride) modifiers.Add(SyntaxFactory.Token(SyntaxKind.OverrideKeyword));
 
             var localOld = "oldValue";
@@ -536,9 +522,11 @@ namespace SpeedyGenerators
         public ConstructorDeclarationSyntax CreateConstructor(string[] commentLines,
             params StatementSyntax[] statements)
         {
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
+
             var methodDeclaration = SyntaxFactory.ConstructorDeclaration(this.ClassName)
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                .WithModifiers(SyntaxFactory.TokenList(modifiers))
                 .WithBody(SyntaxFactory.Block(SyntaxFactory.List<StatementSyntax>(statements)));
 
             return methodDeclaration;
@@ -640,13 +628,14 @@ namespace SpeedyGenerators
                 CreateStringLiteralExpression(stringLiteral)));
         }
 
-        public MethodDeclarationSyntax CreatePartialMethod(string partialMethodName,
-            TypeSyntax returnType, IEnumerable<ParameterSyntax> parameters)
+        public MethodDeclarationSyntax CreatePartialMethod(IEnumerable<string> commentLines, 
+            string partialMethodName, TypeSyntax returnType, IEnumerable<ParameterSyntax> parameters)
         {
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PartialKeyword, commentLines));
+
             var declaration = SyntaxFactory.MethodDeclaration(returnType, partialMethodName)
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(SyntaxKind.PartialKeyword)
-                    ))
+                .WithModifiers(SyntaxFactory.TokenList(modifiers))
                 .WithParameterList(SyntaxFactory.ParameterList(
                     SyntaxFactory.SeparatedList(parameters)))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));

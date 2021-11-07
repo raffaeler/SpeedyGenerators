@@ -9,7 +9,7 @@ namespace ConsoleTest
 {
     internal partial class DerivedFromBaseViewModel : IntermediateViewModel
     {
-        [MakeProperty("Abc")]
+        [MakeProperty("Abc", true)]
         private int _abc;
 
 

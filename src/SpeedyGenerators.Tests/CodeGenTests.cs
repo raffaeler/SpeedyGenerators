@@ -92,7 +92,7 @@ namespace SpeedyGenerators.Tests
         {
             var mgr = new ClassGenerator("FakeNS", "FakeClass");
             var globalPartialmethodParameters = mgr.CreateParameters((mgr.GetTypeName("string"), "propertyName"));
-            var statement = mgr.CreatePartialMethod("OnOnePropertyHasChanged", mgr.GetVoidTypeName(), globalPartialmethodParameters)
+            var statement = mgr.CreatePartialMethod(Array.Empty<string>(), "OnOnePropertyHasChanged", mgr.GetVoidTypeName(), globalPartialmethodParameters)
                 .NormalizeWhitespace();
 
             // ToString does not include the leading trivias (comments)

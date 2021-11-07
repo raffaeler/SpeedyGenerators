@@ -26,6 +26,16 @@ namespace SpeedyGenerators
                 var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
                 var filenamesLookup = CreateFilenames(syntaxReceiver.ClassInfos);
 
+                // First step: retrieve all the full type names for the concrete base types
+                // of the type that needs to be augmented with the INPC code
+                foreach (var classInfo in syntaxReceiver.ClassInfos.Values)
+                {
+                    var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
+                    var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
+                    classInfo.FullNameBaseTypes.AddRange(classInfo.ClassDeclaration.GetBaseTypes(semanticModel)
+                        .Select(s => s.GetFullTypeName()));
+                }
+
                 foreach (var kvp in syntaxReceiver.ClassInfos)
                 {
                     var classInfo = kvp.Value;
@@ -37,6 +47,27 @@ namespace SpeedyGenerators
                         classInfo.ClassDeclaration.GetPropertyChangedGenerationInfo(semanticModel);
                     classInfo.GenerateEvent = generateEvent;
                     classInfo.TriggerMethodName = triggerMethodName;
+
+                    if (!classInfo.ClassDeclaration.CanGenerateGlobalPartialMethod(semanticModel, classInfo.GlobalPartialMethodName))
+                    {
+                        // the global partial method has been declared manually by the dev
+                        classInfo.GlobalPartialMethodName = string.Empty;
+                    }
+                    else
+                    {
+                        // no manual global partial method => we have to generate the partial method in the
+                        // most base class that is going to generate the code
+                        var allClassInfos = syntaxReceiver.ClassInfos.Values;
+                        foreach (var baseClassName in classInfo.FullNameBaseTypes)
+                        {
+                            if(allClassInfos.Any(c => c.FullName == baseClassName))
+                            {
+                                classInfo.GenerateEvent = false;
+                                classInfo.GlobalPartialMethodName = String.Empty;
+                                break;
+                            }
+                        }
+                    }
 
                     foreach (var fieldInfo in classInfo.Fields)
                     {
