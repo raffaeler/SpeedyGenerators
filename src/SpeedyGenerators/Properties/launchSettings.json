@@ -5,7 +5,7 @@
     },
     "RoslynDebug": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\ConsoleTest\\ConsoleTest.csproj"
+      "targetProject": "..\\LibraryTest\\LibraryTest.csproj"
     }
   }
 }
