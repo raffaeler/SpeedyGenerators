@@ -541,7 +541,7 @@ namespace SpeedyGenerators
         public SyntaxTrivia CreateXmlComment(bool prependSpace, IEnumerable<string> lines)
         {
             var tokens = new List<SyntaxToken>();
-            tokens.Add(SyntaxFactory.XmlTextNewLine(Environment.NewLine));
+            tokens.Add(SyntaxFactory.XmlTextNewLine(Utilities.NewLine));
 
             if (lines != null)
             {
@@ -549,7 +549,7 @@ namespace SpeedyGenerators
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     tokens.Add(SyntaxFactory.XmlTextLiteral(line.StartsWith(" ") ? line : " " + line));
-                    tokens.Add(SyntaxFactory.XmlTextNewLine(Environment.NewLine));
+                    tokens.Add(SyntaxFactory.XmlTextNewLine(Utilities.NewLine));
                 }
             }
 
@@ -561,8 +561,8 @@ namespace SpeedyGenerators
                 xmlnodes.Add(SyntaxFactory.XmlText()
                     .WithTextTokens(SyntaxFactory.TokenList(
                         SyntaxFactory.XmlTextNewLine(SyntaxFactory.TriviaList(),
-                                                            Environment.NewLine,
-                                                            Environment.NewLine,
+                                                            Utilities.NewLine,
+                                                            Utilities.NewLine,
                                                             SyntaxFactory.TriviaList()))));
             }
 
@@ -593,8 +593,8 @@ namespace SpeedyGenerators
                 SyntaxFactory.XmlText()
                     .WithTextTokens(SyntaxFactory.TokenList(
                         SyntaxFactory.XmlTextNewLine(SyntaxFactory.TriviaList(),
-                                                            Environment.NewLine,
-                                                            Environment.NewLine,
+                                                            Utilities.NewLine,
+                                                            Utilities.NewLine,
                                                             SyntaxFactory.TriviaList()))),
             });
 

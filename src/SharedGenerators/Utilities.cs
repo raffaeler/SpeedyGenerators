@@ -11,6 +11,8 @@ namespace SpeedyGenerators
 {
     internal class Utilities
     {
+        public const string NewLine = "\n";
+
         public List<FileInfo> GetFilesByPrefix(IEnumerable<AdditionalText> additionalFiles,
             string prefix)
         {
