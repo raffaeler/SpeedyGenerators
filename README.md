@@ -125,7 +125,7 @@ public string? Name
 partial void OnNameChanged(string? oldValue, string? newValue);
 ```
 
-This allows you to be notified inside the NoNameChanged by writing the following method below the field declaration:
+This allows you to be notified inside the OnNameChanged by writing the following method below the field declaration:
 
 ```C#
 partial void OnNameChanged(string? oldValue, string? newValue)
