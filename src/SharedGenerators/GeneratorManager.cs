@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace SpeedyGenerators
@@ -100,5 +102,41 @@ namespace SpeedyGenerators
             return source;
         }
 
+        internal SourceText GenerateImplementationClass(MakeConcreteClassInfo classInfo)
+        {
+            ClassGenerator gen = new(classInfo.NamespaceName, classInfo.ClassName);
+            var modifiers = classInfo.ClassDeclaration.Modifiers;
+            if (modifiers != default(SyntaxTokenList))
+            {
+                gen.Modifiers = modifiers;
+            }
+
+            gen.Usings.Add("System");
+            gen.Usings.Add("System.Collections.Generic");
+            gen.Usings.Add("System.ComponentModel");
+            gen.Usings.Add("System.Runtime.CompilerServices");
+
+            gen.EnableNullable = true;
+
+            if (classInfo.AttributeArguments.ImplementInterface)
+            {
+                gen.Interfaces.Add(classInfo.AttributeArguments.MockingFullTypeName);
+            }
+
+            foreach (var property in classInfo.Properties)
+            {
+                gen.Members.Add(gen.CreatePropertyWithInitializer(
+                    new string[] { $"Implements {classInfo.MockingTypeName}.{property.PropertyName}" },
+                    property.PropertyType,
+                    property.PropertyName,
+                    null,   // initializer
+                    false));
+            }
+
+
+            var source = gen.Generate();
+
+            return source;
+        }
     }
 }

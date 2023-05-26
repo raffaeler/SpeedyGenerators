@@ -27,9 +27,11 @@ namespace SpeedyGenerators
         public ClassDeclarationSyntax ClassDeclaration { get; private set; }
         public string NamespaceName { get; private set; }
         public string ClassName { get; private set; }
+        public string MockingTypeName { get; set; } = string.Empty;
         public MakeConcreteArguments AttributeArguments { get; }
         public string FullName { get; private set; }
         public List<string> FullNameBaseTypes { get; } = new();
+        public List<PropertyGenerationInfo> Properties = new();
 
         public override string ToString()
         {

@@ -11,6 +11,7 @@ namespace LibraryTest;
 interface IMyInterface
 {
     string Name { get; }
+    StringBuilder Other { get; }
 }
 
 [MakeConcrete("LibraryTest.IMyInterface")]

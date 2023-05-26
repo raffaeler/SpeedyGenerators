@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -109,7 +112,11 @@ namespace SpeedyGenerators
                 .Select(b => SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(b)))
                 .ToArray();
 
-            classDeclaration = classDeclaration.AddBaseListTypes(identifiers);
+            if (identifiers.Length > 0)
+            {
+                classDeclaration = classDeclaration.AddBaseListTypes(identifiers);
+            }
+
             return classDeclaration;
         }
 
@@ -311,8 +318,34 @@ namespace SpeedyGenerators
                             SyntaxFactory.IdentifierName(genericType))));
         }
 
+        //internal SyntaxNode CreateProperty(string[] commentLines, NameSyntax typeName, string propertyName)
+        //{
+        //    var propertyDeclaration = SyntaxFactory.PropertyDeclaration(typeName,
+        //        SyntaxFactory.Identifier(propertyName));
+
+
+
+
+        //    var propertyDeclaration = _generator.PropertyDeclaration(name, type,
+        //        Accessibility.Public, DeclarationModifiers.None);
+
+        //    var getAccessor = _generator.GetAccessor(propertyDeclaration,
+        //        DeclarationKind.GetAccessor);
+        //    var simpleGetAccessor = _generator.WithStatements(getAccessor, null);
+        //    propertyDeclaration = _generator.ReplaceNode(propertyDeclaration,
+        //        getAccessor, simpleGetAccessor);
+
+        //    var setAccessor = _generator.GetAccessor(propertyDeclaration,
+        //        DeclarationKind.SetAccessor);
+        //    var simpleSetAccessor = _generator.WithStatements(setAccessor, null);
+        //    propertyDeclaration = _generator.ReplaceNode(propertyDeclaration,
+        //        setAccessor, simpleSetAccessor);
+
+        //    return propertyDeclaration;
+        //}
+
         internal PropertyDeclarationSyntax CreatePropertyWithInitializer(string[] commentLines,
-            NameSyntax typeName, string propertyName, ExpressionSyntax? initializer, bool isOverride = false)
+            TypeSyntax typeName, string propertyName, ExpressionSyntax? initializer, bool isOverride = false)
         {
             //var type2 = SyntaxFactory.IdentifierName(
             //    SyntaxFactory.Identifier(
@@ -739,6 +772,7 @@ namespace SpeedyGenerators
 
         public TypeSyntax GetVoidTypeName()
             => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword));
+
     }
 }
 

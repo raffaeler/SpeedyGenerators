@@ -19,6 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)GeneratorManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MakeConcreteArguments.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MakePropertyArguments.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertyGenerationInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utilities.cs" />
   </ItemGroup>
 </Project>

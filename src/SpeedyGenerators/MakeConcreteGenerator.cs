@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
@@ -35,7 +36,7 @@ namespace SpeedyGenerators
                     classInfo.FullNameBaseTypes.AddRange(classInfo.ClassDeclaration.GetBaseTypes(semanticModel)
                         .Select(s => s.GetFullTypeName()));
 
-                    if(string.IsNullOrEmpty(classInfo.AttributeArguments.InterfaceFullTypeName))
+                    if(string.IsNullOrEmpty(classInfo.AttributeArguments.MockingFullTypeName))
                     {
                         ReportDiagnosticsInterfaceTypeNotLoaded(context, string.Empty);
                         return;
@@ -49,14 +50,39 @@ namespace SpeedyGenerators
                     var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
 
-                    ////var (generateEvent, triggerMethodName) =
-                    ////    classInfo.ClassDeclaration.GetPropertyChangedGenerationInfo(semanticModel);
+                    INamedTypeSymbol? ifaceSymbol = context.Compilation.GetTypeByMetadataName(
+                        classInfo.AttributeArguments.MockingFullTypeName);
+                    if (ifaceSymbol?.Name == null) continue;
 
-                    //var mgr = new GeneratorManager();
-                    //var result = mgr.GenerateINPCClass(classInfo.NamespaceName, classInfo.ClassName, classInfo);
+                    classInfo.MockingTypeName = ifaceSymbol.Name;
+                    var propertySymbols = ifaceSymbol?.GetMembers().OfType<IPropertySymbol>();
+                    // to go back to the syntax use .DeclaringSyntaxReferences
+                    foreach (var propertySymbol in propertySymbols ?? Array.Empty<IPropertySymbol>())
+                    {
+                        var propertyName = propertySymbol.Name;         // propertySymbol.MetadataName
+                        var propertyType = propertySymbol.Type.Name;    // propertySymbol.Type.MetadataName
 
-                    //var hintName = filenamesLookup[kvp.Key];
-                    //context.AddSource(hintName, result);
+                        var nameSyntax = SyntaxFactory.ParseName(propertyType);
+                        var propertyDeclarationSyntax = propertySymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+                             as PropertyDeclarationSyntax;
+                        if (propertyDeclarationSyntax?.Type == null) continue;
+
+                        var propertyGenerationInfo = new PropertyGenerationInfo(propertyName, propertyDeclarationSyntax.Type);
+                        classInfo.Properties.Add(propertyGenerationInfo);
+                    }
+
+                    foreach (var property in classInfo.Properties)
+                    {
+                        if (property.PropertyType == null) continue;
+
+                        Utilities.FillNamespaceChain(property.PropertyType, semanticModel, property.PropertyTypeNamespaces);
+                    }
+
+                    var mgr = new GeneratorManager();
+                    var result = mgr.GenerateImplementationClass(classInfo);
+
+                    var hintName = filenamesLookup[kvp.Key];
+                    context.AddSource(hintName, result);
                 }
             }
             catch (Exception err)

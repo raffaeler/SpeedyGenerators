@@ -6,9 +6,9 @@ namespace SpeedyGenerators;
 
 internal class MakeConcreteArguments
 {
-    public MakeConcreteArguments(string interfaceFullTypeName, bool implementInterface, bool makeSettersPrivate)
+    public MakeConcreteArguments(string mockingFullTypeName, bool implementInterface, bool makeSettersPrivate)
     {
-        InterfaceFullTypeName = interfaceFullTypeName;
+        MockingFullTypeName = mockingFullTypeName;
         ImplementInterface = implementInterface;
         MakeSettersPrivate = makeSettersPrivate;
     }
@@ -32,7 +32,7 @@ internal class MakeConcreteArguments
         return true;
     }
 
-    public string InterfaceFullTypeName { get; private set; }
+    public string MockingFullTypeName { get; private set; }
     public bool ImplementInterface { get; private set; }
     public bool MakeSettersPrivate { get; private set; }
 
