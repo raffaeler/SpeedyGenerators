@@ -10,12 +10,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)ClassGenerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ClassInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeConcreteClassInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakePropertyClassInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Diagnostics.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extractor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FieldInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GeneratorManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeConcreteArguments.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MakePropertyArguments.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utilities.cs" />
   </ItemGroup>

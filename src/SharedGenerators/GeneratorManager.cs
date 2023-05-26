@@ -12,7 +12,7 @@ namespace SpeedyGenerators
 {
     internal partial class GeneratorManager
     {
-        public SourceText GenerateINPCClass(string? @namespace, string className, ClassInfo classInfo)
+        public SourceText GenerateINPCClass(string? @namespace, string className, MakePropertyClassInfo classInfo)
         {
             ClassGenerator gen = new(@namespace, className);
             var modifiers = classInfo.ClassDeclaration.Modifiers;
@@ -36,7 +36,7 @@ namespace SpeedyGenerators
                     new[] { "Event triggered when a property changes its value" },
                     "PropertyChangedEventHandler?", "PropertyChanged", false, false));
 
-                gen.Members.Add(gen.CreateOnPropertyChanged(ClassInfo.OnPropertyChangedMethodName));
+                gen.Members.Add(gen.CreateOnPropertyChanged(MakePropertyClassInfo.OnPropertyChangedMethodName));
             }
 
             foreach (var field in classInfo.Fields)

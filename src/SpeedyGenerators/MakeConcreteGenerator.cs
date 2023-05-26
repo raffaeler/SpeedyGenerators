@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace SpeedyGenerators
 {
     [Generator]
-    public partial class PropertyChangedGenerator : ISourceGenerator
+    public partial class MakeConcreteGenerator : ISourceGenerator
     {
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -34,6 +34,12 @@ namespace SpeedyGenerators
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
                     classInfo.FullNameBaseTypes.AddRange(classInfo.ClassDeclaration.GetBaseTypes(semanticModel)
                         .Select(s => s.GetFullTypeName()));
+
+                    if(string.IsNullOrEmpty(classInfo.AttributeArguments.InterfaceFullTypeName))
+                    {
+                        ReportDiagnosticsInterfaceTypeNotLoaded(context, string.Empty);
+                        return;
+                    }
                 }
 
                 foreach (var kvp in syntaxReceiver.ClassInfos)
@@ -43,44 +49,14 @@ namespace SpeedyGenerators
                     var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
 
-                    var (generateEvent, triggerMethodName) =
-                        classInfo.ClassDeclaration.GetPropertyChangedGenerationInfo(semanticModel);
-                    classInfo.GenerateEvent = generateEvent;
-                    classInfo.TriggerMethodName = triggerMethodName;
+                    ////var (generateEvent, triggerMethodName) =
+                    ////    classInfo.ClassDeclaration.GetPropertyChangedGenerationInfo(semanticModel);
 
-                    if (!classInfo.ClassDeclaration.CanGenerateGlobalPartialMethod(semanticModel, classInfo.GlobalPartialMethodName))
-                    {
-                        // the global partial method has been declared manually by the dev
-                        classInfo.GlobalPartialMethodName = string.Empty;
-                    }
-                    else
-                    {
-                        // no manual global partial method => we have to generate the partial method in the
-                        // most base class that is going to generate the code
-                        var allClassInfos = syntaxReceiver.ClassInfos.Values;
-                        foreach (var baseClassName in classInfo.FullNameBaseTypes)
-                        {
-                            if(allClassInfos.Any(c => c.FullName == baseClassName))
-                            {
-                                classInfo.GenerateEvent = false;
-                                classInfo.GlobalPartialMethodName = String.Empty;
-                                break;
-                            }
-                        }
-                    }
+                    //var mgr = new GeneratorManager();
+                    //var result = mgr.GenerateINPCClass(classInfo.NamespaceName, classInfo.ClassName, classInfo);
 
-                    foreach (var fieldInfo in classInfo.Fields)
-                    {
-                        if (fieldInfo.FieldType == null || fieldInfo.FieldType is PredefinedTypeSyntax) continue;
-
-                        Utilities.FillNamespaceChain(fieldInfo.FieldType, semanticModel, fieldInfo.FieldTypeNamespaces);
-                    }
-
-                    var mgr = new GeneratorManager();
-                    var result = mgr.GenerateINPCClass(classInfo.NamespaceName, classInfo.ClassName, classInfo);
-
-                    var hintName = filenamesLookup[kvp.Key];
-                    context.AddSource(hintName, result);
+                    //var hintName = filenamesLookup[kvp.Key];
+                    //context.AddSource(hintName, result);
                 }
             }
             catch (Exception err)
@@ -97,7 +73,7 @@ namespace SpeedyGenerators
         /// whenever multiple classes with the same name (but different namespace) exists
         /// </summary>
         private Dictionary<string, string> CreateFilenames(
-            Dictionary<string, MakePropertyClassInfo> classInfos)
+            Dictionary<string, MakeConcreteClassInfo> classInfos)
         {
             int i = 0;
             Dictionary<string, string> result = new();
@@ -127,66 +103,48 @@ namespace SpeedyGenerators
 
         private class SyntaxReceiver : ISyntaxReceiver
         {
-            internal Dictionary<string, MakePropertyClassInfo> ClassInfos { get; } = new();
+            internal Dictionary<string, MakeConcreteClassInfo> ClassInfos { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
-                if (syntaxNode is FieldDeclarationSyntax fieldDeclaration)
+                if (syntaxNode is ClassDeclarationSyntax classDeclaration)
                 {
-                    if (fieldDeclaration == null) return;
+                    if (classDeclaration == null) return;
 
-                    var attribute = fieldDeclaration.AttributeLists
+                    var attribute = classDeclaration.AttributeLists
                         .SelectMany(a => a.Attributes)
                         .Select(a => (attribute: a, attribName: a.Name.ToString()))
-                        .Where(a => a.attribName == "MakeProperty" ||
-                                    a.attribName == "MakePropertyAttribute")
+                        .Where(a => a.attribName == "MakeConcrete" ||
+                                    a.attribName == "MakeConcreteAttribute")
                         .FirstOrDefault();
 
                     if (attribute.attribute == null) return;
 
-                    var editedClass = syntaxNode.Ancestors()
-                        .OfType<ClassDeclarationSyntax>()
-                        .FirstOrDefault();
-
-                    if (editedClass == null) return;
-
-                    var namespaceName = editedClass.Ancestors()
+                    var namespaceName = classDeclaration.Ancestors()
                         .OfType<NamespaceDeclarationSyntax>()
                         .FirstOrDefault()
                         ?.Name
                         ?.ToString();
 
-                    namespaceName ??= editedClass.Ancestors()
+                    namespaceName ??= classDeclaration.Ancestors()
                         .OfType<FileScopedNamespaceDeclarationSyntax>()
                         .FirstOrDefault()
                         ?.Name
                         ?.ToString();
 
                     namespaceName ??= String.Empty;
-                    var className = editedClass.Identifier.ToString();
+                    var className = classDeclaration.Identifier.ToString();
                     var fullName = $"{namespaceName}.{className}";
 
-                    var fieldName = fieldDeclaration.Declaration
-                        ?.Variables.FirstOrDefault()
-                        ?.Identifier.ToString();
-                    if (fieldName == null) return;
-
-                    var fieldType = fieldDeclaration.Declaration?.Type;
-                    if (fieldType == null) return;
-
-                    var attributeArguments = Extractor.ExtractMakePropertyArguments(attribute.attribute);
+                    var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
                     if (attributeArguments == null) return;
 
-                    var comments = Extractor.ExtractComments(fieldDeclaration);
-
-                    if (!ClassInfos.TryGetValue(fullName, out MakePropertyClassInfo classInfo))
+                    if (!ClassInfos.TryGetValue(fullName, out MakeConcreteClassInfo classInfo))
                     {
-                        classInfo = new MakePropertyClassInfo(editedClass, namespaceName, className);
+                        classInfo = new MakeConcreteClassInfo(classDeclaration,
+                            namespaceName, className, attributeArguments);
                         ClassInfos[fullName] = classInfo;
                     }
-
-                    var fieldInfo = new FieldInfo(fieldName, fieldType, comments, attributeArguments);
-                    classInfo.Fields.Add(fieldInfo);
                 }
             }
         }
@@ -194,10 +152,10 @@ namespace SpeedyGenerators
         private void ReportDiagnostics(GeneratorExecutionContext context, Exception exception)
         {
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                id: "PCG01",
+                id: "MCG01",
                 title: "General error",
                 messageFormat: "An exception was generated: '{0}'",
-                category: "PropertyChangedGenerator",
+                category: "MakeConcreteGenerator",
                 DiagnosticSeverity.Warning,
                 isEnabledByDefault: true), Location.None, exception.Message));
         }
@@ -205,14 +163,24 @@ namespace SpeedyGenerators
         private void ReportDiagnostics(GeneratorExecutionContext context, string detail)
         {
             context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                id: "PCG02",
+                id: "MCG02",
                 title: "General syntax error",
                 messageFormat: "A syntax error in the code is preventing the generation '{0}'",
-                category: "PropertyChangedGenerator",
+                category: "MakeConcreteGenerator",
                 DiagnosticSeverity.Warning,
                 isEnabledByDefault: true), Location.None, detail));
         }
 
+        private void ReportDiagnosticsInterfaceTypeNotLoaded(GeneratorExecutionContext context, string detail)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+                id: "MCG03",
+                title: "Invalid interface type",
+                messageFormat: "The specified interface type cannot be null or empty '{0}'",
+                category: "MakeConcreteGenerator",
+                DiagnosticSeverity.Warning,
+                isEnabledByDefault: true), Location.None, detail));
+        }
     }
 }
 

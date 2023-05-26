@@ -75,7 +75,7 @@ namespace SpeedyGenerators
                     .ToList();
             if (candidates.Count == 0) return null;
             if (candidates.Count == 1) return candidates[0];
-            var onPropertyChanged = candidates.FirstOrDefault(c => c.Name.StartsWith(ClassInfo.OnPropertyChangedMethodName));
+            var onPropertyChanged = candidates.FirstOrDefault(c => c.Name.StartsWith(MakePropertyClassInfo.OnPropertyChangedMethodName));
             if (onPropertyChanged != null) return onPropertyChanged;
             return candidates.First();
         }
@@ -84,12 +84,12 @@ namespace SpeedyGenerators
             this ClassDeclarationSyntax classDeclaration, SemanticModel model)
         {
             var baseTypeWithEvent = classDeclaration.SearchBaseTypes(model,
-                symbol => symbol.HasMemberCalled(ClassInfo.PropertyChangedEventName));
+                symbol => symbol.HasMemberCalled(MakePropertyClassInfo.PropertyChangedEventName));
 
-            if (baseTypeWithEvent == null) return (true, ClassInfo.OnPropertyChangedMethodName);
+            if (baseTypeWithEvent == null) return (true, MakePropertyClassInfo.OnPropertyChangedMethodName);
 
             var candidateMethod = baseTypeWithEvent.GetBestMatchForPropertyChangedMethod();
-            if (candidateMethod == null) return (false, ClassInfo.OnPropertyChangedMethodName);
+            if (candidateMethod == null) return (false, MakePropertyClassInfo.OnPropertyChangedMethodName);
 
             return (false, candidateMethod.Name);
         }

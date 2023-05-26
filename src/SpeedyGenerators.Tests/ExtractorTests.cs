@@ -76,25 +76,25 @@ public partial class Test
                 .ToList();
 
             var cases = fields.SelectMany(GetAttributes).ToList();
-            var arguments0 = Extractor.ExtractAttributeArguments(cases[0]);
+            var arguments0 = Extractor.ExtractMakePropertyArguments(cases[0]);
             Assert.IsNotNull(arguments0);
             Assert.IsTrue(arguments0.Name == "X");
             Assert.IsTrue(arguments0.ExtraNotify == false);
             Assert.IsTrue(arguments0.CompareValues == false);
 
-            var arguments1 = Extractor.ExtractAttributeArguments(cases[1]);
+            var arguments1 = Extractor.ExtractMakePropertyArguments(cases[1]);
             Assert.IsNotNull(arguments1);
             Assert.IsTrue(arguments1.Name == "Y");
             Assert.IsTrue(arguments1.ExtraNotify == false);
             Assert.IsTrue(arguments1.CompareValues == false);
 
-            var arguments2 = Extractor.ExtractAttributeArguments(cases[2]);
+            var arguments2 = Extractor.ExtractMakePropertyArguments(cases[2]);
             Assert.IsNotNull(arguments2);
             Assert.IsTrue(arguments2.Name == "Z");
             Assert.IsTrue(arguments2.ExtraNotify == true);
             Assert.IsTrue(arguments2.CompareValues == false);
 
-            var arguments3 = Extractor.ExtractAttributeArguments(cases[3]);
+            var arguments3 = Extractor.ExtractMakePropertyArguments(cases[3]);
             Assert.IsNotNull(arguments3);
             Assert.IsTrue(arguments3.Name == "T");
             Assert.IsTrue(arguments3.ExtraNotify == true);

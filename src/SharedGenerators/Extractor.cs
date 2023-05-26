@@ -42,7 +42,7 @@ namespace SpeedyGenerators
             return lines.ToArray();
         }
 
-        public static MakePropertyArguments? ExtractAttributeArguments(
+        public static MakePropertyArguments? ExtractMakePropertyArguments(
             AttributeSyntax attribute)
         {
             var args = attribute.ArgumentList?.Arguments
@@ -50,6 +50,18 @@ namespace SpeedyGenerators
                 .ToArray();
 
             MakePropertyArguments.TryParse(args, out MakePropertyArguments? arguments);
+
+            return arguments;
+        }
+
+        public static MakeConcreteArguments? ExtractMakeConcreteArguments(
+            AttributeSyntax attribute)
+        {
+            var args = attribute.ArgumentList?.Arguments
+                .Select(a => a.ToString())
+                .ToArray();
+
+            MakeConcreteArguments.TryParse(args, out MakeConcreteArguments? arguments);
 
             return arguments;
         }
