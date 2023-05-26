@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 using SpeedyGenerators;
 
-namespace LibraryTest
+namespace ConsoleTest;
+
+internal partial class FileScopedClass
 {
-    internal partial class ShortDemo
-    {
-        //[MakeProperty("Name")]
-        //private string? _name;
-    }
+    [MakeProperty("MyProperty")]
+    private int _myField;
 }
