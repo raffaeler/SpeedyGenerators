@@ -186,10 +186,3 @@ The optional parameters can be, of course, combined together.
 
 Please use the Issues on the GitHub repository to provide bugs and suggestions.
 
-## Updates
-
-* Starting from version `1.0.16` all the fields having the `ExtraNotify` flag will call a new partial method called `OnOnePropertyHasChanged` which has a single string parameter specifying the name of the property.
-
-  The rationale behind this new feature can be read [here](https://github.com/raffaeler/SpeedyGenerators/issues/1).
-
-  an additional partial method is 
