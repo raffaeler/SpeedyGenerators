@@ -155,6 +155,7 @@ namespace SpeedyGenerators
                         .FirstOrDefault()
                         ?.Name
                         ?.ToString();
+                        .OfType<FileScopedNamespaceDeclarationSyntax>()
                     namespaceName ??= String.Empty;
                     var className = editedClass.Identifier.ToString();
                     var fullName = $"{namespaceName}.{className}";
