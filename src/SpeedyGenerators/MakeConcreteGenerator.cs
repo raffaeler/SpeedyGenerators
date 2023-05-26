@@ -69,24 +69,38 @@ namespace SpeedyGenerators
                     // to go back to the syntax use .DeclaringSyntaxReferences
                     foreach (var propertySymbol in propertySymbols ?? Array.Empty<IPropertySymbol>())
                     {
-                        var propertyName = propertySymbol.Name;         // propertySymbol.MetadataName
-                        var propertyType = propertySymbol.Type.Name;    // propertySymbol.Type.MetadataName
+                        var propertyNameSymbol = propertySymbol.Name;         // propertySymbol.MetadataName
+                        var propertyTypeSymbol = propertySymbol.Type.Name;    // propertySymbol.Type.MetadataName
 
-                        var nameSyntax = SyntaxFactory.ParseName(propertyType);
+                        var nameSyntax = SyntaxFactory.ParseName(propertyTypeSymbol);
                         var propertyDeclarationSyntax = propertySymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
                              as PropertyDeclarationSyntax;
                         if (propertyDeclarationSyntax?.Type == null) continue;
 
-                        var propertyGenerationInfo = new PropertyGenerationInfo(propertyName, propertyDeclarationSyntax.Type);
+                        var propertyType = propertyDeclarationSyntax.Type;
+                        Utilities.FillNamespaceChain(propertyType, semanticModel, classInfo.Namespaces);
+
+                        if (propertySymbol.Type.IsReferenceType)
+                        {
+                            // makes the type nullable
+                            propertyType = SyntaxFactory.NullableType(propertyType);
+                        }
+                        else
+                        {
+                            // it is a value type
+                            propertyType = SyntaxFactory.NullableType(propertyType);
+                        }
+
+                        var propertyGenerationInfo = new PropertyGenerationInfo(propertyNameSymbol, propertyType);
                         classInfo.Properties.Add(propertyGenerationInfo);
                     }
 
-                    foreach (var property in classInfo.Properties)
-                    {
-                        if (property.PropertyType == null) continue;
+                    //foreach (var property in classInfo.Properties)
+                    //{
+                    //    if (property.PropertyType == null) continue;
 
-                        Utilities.FillNamespaceChain(property.PropertyType, semanticModel, classInfo.Namespaces);
-                    }
+                    //    Utilities.FillNamespaceChain(property.PropertyType, semanticModel, classInfo.Namespaces);
+                    //}
 
                     var mgr = new GeneratorManager();
                     var result = mgr.GenerateImplementationClass(classInfo);

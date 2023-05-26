@@ -147,9 +147,6 @@ namespace SpeedyGenerators
                     false));
             }
 
-            //gen.CreateConstructor(Array.Empty<string>(),)
-
-
             var source = gen.Generate();
 
             return source;
