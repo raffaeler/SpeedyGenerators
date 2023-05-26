@@ -32,6 +32,7 @@ namespace SpeedyGenerators
         public string FullName { get; private set; }
         public List<string> FullNameBaseTypes { get; } = new();
         public List<PropertyGenerationInfo> Properties = new();
+        public HashSet<string> Namespaces { get; set; } = new HashSet<string>();
 
         public override string ToString()
         {

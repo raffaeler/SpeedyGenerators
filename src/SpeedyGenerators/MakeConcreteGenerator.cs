@@ -53,6 +53,16 @@ namespace SpeedyGenerators
                     INamedTypeSymbol? ifaceSymbol = context.Compilation.GetTypeByMetadataName(
                         classInfo.AttributeArguments.MockingFullTypeName);
                     if (ifaceSymbol?.Name == null) continue;
+                    var ifaceDeclarationSyntax = ifaceSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+                        as InterfaceDeclarationSyntax;
+                    if (ifaceDeclarationSyntax != null)
+                    {
+                        var nspace = GetFullNamespaceFor(ifaceDeclarationSyntax);
+                        if (nspace != null)
+                        {
+                            classInfo.Namespaces.Add(nspace.ToString());
+                        }
+                    }
 
                     classInfo.MockingTypeName = ifaceSymbol.Name;
                     var propertySymbols = ifaceSymbol?.GetMembers().OfType<IPropertySymbol>();
@@ -75,7 +85,7 @@ namespace SpeedyGenerators
                     {
                         if (property.PropertyType == null) continue;
 
-                        Utilities.FillNamespaceChain(property.PropertyType, semanticModel, property.PropertyTypeNamespaces);
+                        Utilities.FillNamespaceChain(property.PropertyType, semanticModel, classInfo.Namespaces);
                     }
 
                     var mgr = new GeneratorManager();
@@ -89,6 +99,26 @@ namespace SpeedyGenerators
             {
                 ReportDiagnostics(context, err);
             }
+        }
+
+        private string GetFullNamespaceFor(InterfaceDeclarationSyntax declarationSyntax)
+        {
+            SyntaxNode? node = declarationSyntax;
+            List<string> names = new();
+            while(node != null)
+            {
+                if(node is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
+                {
+                    names.Insert(0, namespaceDeclarationSyntax.Name.ToString());
+                }
+                else if(node is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclarationSyntax)
+                {
+                    names.Insert(0, fileScopedNamespaceDeclarationSyntax.Name.ToString());
+                }
+                node = node.Parent;
+            }
+
+            return string.Join(".", names);
         }
 
         /// <summary>

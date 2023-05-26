@@ -16,5 +16,4 @@ internal class PropertyGenerationInfo
 
     public string PropertyName { get; }
     public TypeSyntax PropertyType { get; }
-    public HashSet<string> PropertyTypeNamespaces { get; set; } = new HashSet<string>();
 }

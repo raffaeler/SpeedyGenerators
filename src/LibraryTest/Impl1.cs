@@ -6,17 +6,23 @@ using System.Threading.Tasks;
 
 using SpeedyGenerators;
 
-namespace LibraryTest;
-
-interface IMyInterface
+namespace LibraryTest
 {
-    string Name { get; }
-    StringBuilder Other { get; }
-}
 
-[MakeConcrete("LibraryTest.IMyInterface")]
-partial class MyImplementation
-{
-}
+    namespace Abc
+    {
+        interface IMyInterface
+        {
+            string Name { get; }
+            StringBuilder Other { get; }
+        }
+    }
 
-partial struct MyStruct { }
+    [MakeConcrete("LibraryTest.Abc.IMyInterface")]
+    partial class MyImplementation
+    {
+    }
+
+    partial struct MyStruct { }
+
+}

@@ -9,11 +9,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SpeedyGenerators;
 
-internal class Utilities
+internal static class Utilities
 {
     public const string NewLine = "\n";
 
-    public List<FileInfo> GetFilesByPrefix(IEnumerable<AdditionalText> additionalFiles,
+    public static string toCamel(this string text)
+    {
+        if (string.IsNullOrEmpty(text)) { return text; }
+        return $"{Char.ToLower(text[0])}{text.Substring(1)}";
+    }
+
+    public static List<FileInfo> GetFilesByPrefix(IEnumerable<AdditionalText> additionalFiles,
         string prefix)
     {
         var files = new List<FileInfo>();

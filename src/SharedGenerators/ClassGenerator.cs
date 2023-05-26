@@ -62,9 +62,9 @@ namespace SpeedyGenerators
             if (nspaceDeclaration != null)
             {
                 nspaceDeclaration = nspaceDeclaration.AddMembers(classDeclaration);
-                if(EnableNullable)
+                if (EnableNullable)
                 {
-                    nspaceDeclaration = 
+                    nspaceDeclaration =
                         nspaceDeclaration.WithLeadingTrivia(CreateNullableEnable());
                 }
 
@@ -72,7 +72,7 @@ namespace SpeedyGenerators
             }
             else
             {
-                if(EnableNullable)
+                if (EnableNullable)
                 {
                     classDeclaration = classDeclaration.WithLeadingTrivia(CreateNullableEnable());
                 }
@@ -345,7 +345,8 @@ namespace SpeedyGenerators
         //}
 
         internal PropertyDeclarationSyntax CreatePropertyWithInitializer(string[] commentLines,
-            TypeSyntax typeName, string propertyName, ExpressionSyntax? initializer, bool isOverride = false)
+            TypeSyntax typeName, string propertyName, ExpressionSyntax? initializer,
+            bool createSetter = false, bool createPublicSetter = false, bool isOverride = false)
         {
             //var type2 = SyntaxFactory.IdentifierName(
             //    SyntaxFactory.Identifier(
@@ -361,21 +362,36 @@ namespace SpeedyGenerators
             modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
             if (isOverride) modifiers.Add(SyntaxFactory.Token(SyntaxKind.OverrideKeyword));
 
+            var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+            var setterModifiers = createPublicSetter
+                ? SyntaxFactory.TokenList()
+                : SyntaxFactory.TokenList(CreateModifier(SyntaxKind.PrivateKeyword, Array.Empty<string>()));
+
+            var setter = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration,
+                SyntaxFactory.List<AttributeListSyntax>(),
+                setterModifiers,
+                null,
+                null)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+            var list = !createSetter
+                ? SyntaxFactory.SingletonList<AccessorDeclarationSyntax>(getter)
+                : SyntaxFactory.List<AccessorDeclarationSyntax>(new[] { getter, setter });
+
             propertyDeclaration = propertyDeclaration
                 .WithModifiers(SyntaxFactory.TokenList(modifiers))
-                .WithAccessorList(SyntaxFactory.AccessorList(
-                        SyntaxFactory.SingletonList<AccessorDeclarationSyntax>(
-                            SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))));
+                .WithAccessorList(SyntaxFactory.AccessorList(list));
 
             if (initializer != null)
             {
                 propertyDeclaration = propertyDeclaration
                 .WithInitializer(SyntaxFactory.EqualsValueClause(initializer));
-            }
 
-            propertyDeclaration = propertyDeclaration
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                propertyDeclaration = propertyDeclaration
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+            }
 
             //propertyDeclaration = propertyDeclaration
             //    .WithLeadingTrivia(comment);
@@ -440,7 +456,7 @@ namespace SpeedyGenerators
                 setterStatements.Add(CreateCompareValueAndReturn(fieldName));
             }
 
-            if(!string.IsNullOrEmpty(partialMethodName))
+            if (!string.IsNullOrEmpty(partialMethodName))
             {
                 // var old = _field;
                 setterStatements.Add(CreateDeclareLocalOldValue(fieldName, localOld));
@@ -448,11 +464,11 @@ namespace SpeedyGenerators
 
             // _field = value;
             setterStatements.Add(CreateSetFieldValue(fieldName));
-            
+
             // OnPropertyChanged();
             setterStatements.Add(CreateCallMethod(propertyChangedMethod));
 
-            if(!string.IsNullOrEmpty(partialMethodName))
+            if (!string.IsNullOrEmpty(partialMethodName))
             {
                 // OnFieldChanged(old, _field);
 #pragma warning disable CS8604 // Possible null reference argument.
@@ -500,7 +516,7 @@ namespace SpeedyGenerators
         /// </summary>
         public StatementSyntax CreateCompareValueAndReturn(string fieldName)
         {
-            return 
+            return
                 SyntaxFactory.IfStatement(
                     SyntaxFactory.BinaryExpression(
                         SyntaxKind.EqualsExpression,
@@ -551,6 +567,47 @@ namespace SpeedyGenerators
             => SyntaxFactory.IdentifierName(
                 SyntaxFactory.Identifier(SyntaxFactory.TriviaList(),
                     SyntaxKind.VarKeyword, "var", "var", SyntaxFactory.TriviaList()));
+
+        public ConstructorDeclarationSyntax CreateConstructorInitializingProperties(string[] commentLines,
+            params (TypeSyntax type, string name)[] propertiesToInitialize)
+        {
+            List<ParameterSyntax> parameters = new();
+            List<StatementSyntax> statements = new();
+            foreach ((TypeSyntax type, string name) tuple in propertiesToInitialize)
+            {
+                var arg = tuple.name.toCamel();
+                if (arg == tuple.name)
+                {
+                    arg += "_value";
+                }
+
+                var parameter = SyntaxFactory.Parameter(
+                    SyntaxFactory.List<AttributeListSyntax>(),
+                    SyntaxFactory.TokenList(),
+                    tuple.type,
+                    SyntaxFactory.Identifier(arg), null);
+                parameters.Add(parameter);
+
+                var statement = SyntaxFactory.ExpressionStatement(
+                    SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                    SyntaxFactory.IdentifierName(tuple.name),
+                    SyntaxFactory.IdentifierName(arg))).NormalizeWhitespace();
+                statements.Add(statement);
+            }
+
+            var parameterList = SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(parameters));
+
+
+            List<SyntaxToken> modifiers = new();
+            modifiers.Add(CreateModifier(SyntaxKind.PublicKeyword, commentLines));
+
+            var methodDeclaration = SyntaxFactory.ConstructorDeclaration(this.ClassName)
+                .WithModifiers(SyntaxFactory.TokenList(modifiers))
+                .WithParameterList(parameterList)
+                .WithBody(SyntaxFactory.Block(SyntaxFactory.List<StatementSyntax>(statements)));
+
+            return methodDeclaration;
+        }
 
         public ConstructorDeclarationSyntax CreateConstructor(string[] commentLines,
             params StatementSyntax[] statements)
@@ -661,7 +718,7 @@ namespace SpeedyGenerators
                 CreateStringLiteralExpression(stringLiteral)));
         }
 
-        public MethodDeclarationSyntax CreatePartialMethod(IEnumerable<string> commentLines, 
+        public MethodDeclarationSyntax CreatePartialMethod(IEnumerable<string> commentLines,
             string partialMethodName, TypeSyntax returnType, IEnumerable<ParameterSyntax> parameters)
         {
             List<SyntaxToken> modifiers = new();

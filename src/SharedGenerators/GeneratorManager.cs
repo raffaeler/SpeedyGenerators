@@ -120,18 +120,34 @@ namespace SpeedyGenerators
 
             if (classInfo.AttributeArguments.ImplementInterface)
             {
-                gen.Interfaces.Add(classInfo.AttributeArguments.MockingFullTypeName);
+                gen.Interfaces.Add(classInfo.MockingTypeName);// AttributeArguments.MockingFullTypeName);
             }
+
+            gen.Members.Add(gen.CreateConstructorInitializingProperties(
+                Array.Empty<string>(), classInfo.Properties.Select(p => (p.PropertyType, p.PropertyName)).ToArray()));
 
             foreach (var property in classInfo.Properties)
             {
+                if (classInfo.Namespaces != null)
+                {
+                    if (classInfo.NamespaceName != null)
+                        classInfo.Namespaces.Remove(classInfo.NamespaceName);
+
+                    foreach (var ns in classInfo.Namespaces)
+                        gen.Usings.Add(ns);
+                }
+
                 gen.Members.Add(gen.CreatePropertyWithInitializer(
                     new string[] { $"Implements {classInfo.MockingTypeName}.{property.PropertyName}" },
                     property.PropertyType,
                     property.PropertyName,
                     null,   // initializer
+                    true,
+                    !classInfo.AttributeArguments.MakeSettersPrivate,
                     false));
             }
+
+            //gen.CreateConstructor(Array.Empty<string>(),)
 
 
             var source = gen.Generate();
