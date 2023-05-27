@@ -24,11 +24,11 @@ namespace SpeedyGenerators
         public static string GetFullTypeName(this INamedTypeSymbol symbol)
             => $"{symbol.ContainingNamespace.Name}.{symbol.Name}";
 
-        public static IList<INamedTypeSymbol> GetBaseTypes(this ClassDeclarationSyntax classDeclaration,
+        public static IList<INamedTypeSymbol> GetBaseTypes(this BaseTypeDeclarationSyntax typeDeclaration,
             SemanticModel model)
         {
             List<INamedTypeSymbol> result = new();
-            var classTypeSymbol = model.GetDeclaredSymbol(classDeclaration) as ITypeSymbol;
+            var classTypeSymbol = model.GetDeclaredSymbol(typeDeclaration) as ITypeSymbol;
             if (classTypeSymbol == null) return result;
 
             var baseTypeSymbol = classTypeSymbol.BaseType;

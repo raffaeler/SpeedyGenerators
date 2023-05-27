@@ -19,6 +19,67 @@ internal static class Utilities
         return $"{Char.ToLower(text[0])}{text.Substring(1)}";
     }
 
+    public static string ExtractString(string[] arguments, int index, string defaultValue)
+    {
+        if (index >= arguments.Length) { return defaultValue; }
+        var text = arguments[index];
+        if (string.IsNullOrEmpty(text)) return defaultValue;
+
+        if (text.StartsWith("\"")) return text.Trim('\"');
+        var colonIndex = text.IndexOf(':');
+        if(colonIndex == -1) return defaultValue;
+        string val = text.Substring(colonIndex + 1);
+        return val.Trim(' ', '\"');
+    }
+
+    public static bool ExtractBoolean(string[] arguments, int index, bool defaultValue)
+    {
+        if(index >= arguments.Length) { return defaultValue; }
+        var text = arguments[index];
+        if (string.IsNullOrEmpty(text)) return defaultValue;
+        var colonIndex = text.IndexOf(":");
+        string val;
+        if (colonIndex == -1)
+        {
+            val = text;
+        }
+        else
+        {
+            val = text.Substring(colonIndex + 1);
+        }
+
+        if (bool.TryParse(val, out bool result))
+        {
+            return result;
+        }
+
+        return defaultValue;
+    }
+        
+    public static Int32 ExtractInt32(string[] arguments, int index, Int32 defaultValue)
+    {
+        if(index >= arguments.Length) { return defaultValue; }
+        var text = arguments[index];
+        if (string.IsNullOrEmpty(text)) return defaultValue;
+        var colonIndex = text.IndexOf(":");
+        string val;
+        if (colonIndex == -1)
+        {
+            val = text;
+        }
+        else
+        {
+            val = text.Substring(colonIndex + 1);
+        }
+
+        if (int.TryParse(val, out int result))
+        {
+            return result;
+        }
+
+        return defaultValue;
+    }
+        
     public static List<FileInfo> GetFilesByPrefix(IEnumerable<AdditionalText> additionalFiles,
         string prefix)
     {
@@ -131,6 +192,5 @@ internal static class Utilities
 
 
 }
-
 
 

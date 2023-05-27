@@ -33,12 +33,15 @@ namespace SpeedyGenerators
                     public bool CompareValues { get; private set; }
                 }
 
-                [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+                [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
                 sealed class MakeConcreteAttribute : Attribute
                 {
                     public MakeConcreteAttribute(string interfaceFullTypeName,
+                        bool generateInitializingConstructor = true,
+                        bool makeSettersPrivate = false,
                         bool implementInterface = false,
-                        bool makeSettersPrivate = false)
+                        bool makeReferenceTypesNullable = false,
+                        bool makeValueTypesNullable = false)
                     {
                         if (interfaceFullTypeName == null)
                         {
@@ -46,13 +49,19 @@ namespace SpeedyGenerators
                         }
 
                         InterfaceFullTypeName = interfaceFullTypeName;
-                        ImplementInterface = implementInterface;
+                        GenerateInitializingConstructor = generateInitializingConstructor;
                         MakeSettersPrivate = makeSettersPrivate;
+                        ImplementInterface = implementInterface;
+                        MakeReferenceTypesNullable = makeReferenceTypesNullable;
+                        MakeValueTypesNullable = makeValueTypesNullable;
                     }
 
                     public string InterfaceFullTypeName { get; }
-                    public bool ImplementInterface { get; }
+                    public bool GenerateInitializingConstructor { get; }
                     public bool MakeSettersPrivate { get; }
+                    public bool ImplementInterface { get; }
+                    public bool MakeReferenceTypesNullable { get; }
+                    public bool MakeValueTypesNullable { get; }
                 }
             
             }

@@ -9,7 +9,8 @@
     <Import_RootNamespace>SpeedyGenerators</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)ClassGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConcreteTypeGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConcreteTypeKind.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MakeConcreteClassInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MakePropertyClassInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Diagnostics.cs" />

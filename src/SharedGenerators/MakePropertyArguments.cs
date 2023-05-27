@@ -22,11 +22,9 @@ namespace SpeedyGenerators
                 return false;
             }
 
-            var arg0 = arguments[0].Trim('\"');
-            var arg1 = false;
-            var arg2 = false;
-            if (arguments.Length >= 2) bool.TryParse(arguments[1], out arg1);
-            if (arguments.Length >= 3) bool.TryParse(arguments[2], out arg2);
+            var arg0 = Utilities.ExtractString(arguments, 0, string.Empty);
+            var arg1 = Utilities.ExtractBoolean(arguments, 1, false);
+            var arg2 = Utilities.ExtractBoolean(arguments, 2, false);
 
             instance = new MakePropertyArguments(arg0, arg1, arg2);
             return true;

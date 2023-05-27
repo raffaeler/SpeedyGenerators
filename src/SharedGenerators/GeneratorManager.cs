@@ -16,7 +16,7 @@ namespace SpeedyGenerators
     {
         public SourceText GenerateINPCClass(string? @namespace, string className, MakePropertyClassInfo classInfo)
         {
-            ClassGenerator gen = new(@namespace, className);
+            ConcreteTypeGenerator gen = new(@namespace, className);
             var modifiers = classInfo.ClassDeclaration.Modifiers;
             if (modifiers != default(SyntaxTokenList))
             {
@@ -97,15 +97,15 @@ namespace SpeedyGenerators
             //gen.Members.Add(gen.CreateField(
             //    new[] { "comment" }, "string", "_test", null, true, false));
 
-            var source = gen.Generate();
+            var source = gen.Generate(ConcreteTypeKind.Class);
 
             return source;
         }
 
-        internal SourceText GenerateImplementationClass(MakeConcreteClassInfo classInfo)
+        internal SourceText GenerateImplementationClass(MakeConcreteClassInfo typeInfo)
         {
-            ClassGenerator gen = new(classInfo.NamespaceName, classInfo.ClassName);
-            var modifiers = classInfo.ClassDeclaration.Modifiers;
+            ConcreteTypeGenerator gen = new(typeInfo.NamespaceName, typeInfo.ClassName);
+            var modifiers = typeInfo.TypeDeclaration.Modifiers;
             if (modifiers != default(SyntaxTokenList))
             {
                 gen.Modifiers = modifiers;
@@ -118,36 +118,40 @@ namespace SpeedyGenerators
 
             gen.EnableNullable = true;
 
-            if (classInfo.AttributeArguments.ImplementInterface)
+            if (typeInfo.AttributeArguments.ImplementInterface)
             {
-                gen.Interfaces.Add(classInfo.MockingTypeName);// AttributeArguments.MockingFullTypeName);
+                gen.Interfaces.Add(typeInfo.MockingTypeName);// AttributeArguments.MockingFullTypeName);
             }
 
-            gen.Members.Add(gen.CreateConstructorInitializingProperties(
-                Array.Empty<string>(), classInfo.Properties.Select(p => (p.PropertyType, p.PropertyName)).ToArray()));
-
-            foreach (var property in classInfo.Properties)
+            if(typeInfo.AttributeArguments.GenerateInitializingConstructor)
             {
-                if (classInfo.Namespaces != null)
-                {
-                    if (classInfo.NamespaceName != null)
-                        classInfo.Namespaces.Remove(classInfo.NamespaceName);
+                gen.Members.Add(gen.CreateConstructorInitializingProperties(
+                    Array.Empty<string>(),
+                    typeInfo.Properties.Select(p => (p.PropertyType, p.PropertyName)).ToArray()));
+            }
 
-                    foreach (var ns in classInfo.Namespaces)
+            foreach (var property in typeInfo.Properties)
+            {
+                if (typeInfo.Namespaces != null)
+                {
+                    if (typeInfo.NamespaceName != null)
+                        typeInfo.Namespaces.Remove(typeInfo.NamespaceName);
+
+                    foreach (var ns in typeInfo.Namespaces)
                         gen.Usings.Add(ns);
                 }
 
                 gen.Members.Add(gen.CreatePropertyWithInitializer(
-                    new string[] { $"Implements {classInfo.MockingTypeName}.{property.PropertyName}" },
+                    new string[] { $"Implements {typeInfo.MockingTypeName}.{property.PropertyName}" },
                     property.PropertyType,
                     property.PropertyName,
                     null,   // initializer
                     true,
-                    !classInfo.AttributeArguments.MakeSettersPrivate,
+                    !typeInfo.AttributeArguments.MakeSettersPrivate,
                     false));
             }
 
-            var source = gen.Generate();
+            var source = gen.Generate(typeInfo.ConcreteTypeKind);
 
             return source;
         }

@@ -14,17 +14,19 @@ namespace SpeedyGenerators
         public static readonly string OnPropertyChangedMethodName = "OnPropertyChanged";
         public static readonly string DefaultGlobalPartialMethodName = "OnOnePropertyHasChanged";
 
-        public MakeConcreteClassInfo(ClassDeclarationSyntax classDeclaration, string namespaceName, string className,
+        public MakeConcreteClassInfo(ConcreteTypeKind concreteTypeKind, BaseTypeDeclarationSyntax typeDeclaration, string namespaceName, string className,
             MakeConcreteArguments arguments)
         {
-            ClassDeclaration = classDeclaration;
+            ConcreteTypeKind = concreteTypeKind;
+            TypeDeclaration = typeDeclaration;
             NamespaceName = namespaceName;
             ClassName = className;
             AttributeArguments = arguments;
             FullName = $"{NamespaceName}.{ClassName}";
         }
 
-        public ClassDeclarationSyntax ClassDeclaration { get; private set; }
+        public ConcreteTypeKind ConcreteTypeKind { get; private set; }
+        public BaseTypeDeclarationSyntax TypeDeclaration { get; private set; }
         public string NamespaceName { get; private set; }
         public string ClassName { get; private set; }
         public string MockingTypeName { get; set; } = string.Empty;

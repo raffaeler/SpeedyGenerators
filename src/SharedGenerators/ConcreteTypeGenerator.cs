@@ -15,9 +15,9 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace SpeedyGenerators
 {
-    public class ClassGenerator
+    public class ConcreteTypeGenerator
     {
-        public ClassGenerator(string? @namespace, string className)
+        public ConcreteTypeGenerator(string? @namespace, string className)
         {
             this.Namespace = @namespace;
             this.ClassName = className;
@@ -33,7 +33,7 @@ namespace SpeedyGenerators
 
         internal List<MemberDeclarationSyntax> Members { get; } = new();
 
-        public SourceText Generate()
+        public SourceText Generate(ConcreteTypeKind concreteTypeKind)
         {
             var compilationUnit = SyntaxFactory.CompilationUnit();
 
@@ -53,15 +53,84 @@ namespace SpeedyGenerators
             var partialToken = SyntaxFactory.Token(SyntaxKind.PartialKeyword);
             if (!Modifiers.Contains(partialToken)) Modifiers.Add(partialToken);
 
-            var classDeclaration = SyntaxFactory.ClassDeclaration(ClassName)
-                .WithModifiers(Modifiers);
-            classDeclaration = AddBaseTypes(classDeclaration);
+            BaseTypeSyntax[] baseTypes = GetBaseTypes();
+            var baseList = baseTypes.Length == 0 ? null : SyntaxFactory.BaseList(SyntaxFactory.SeparatedList(GetBaseTypes()));
+            BaseTypeDeclarationSyntax? typeDeclaration = null;
+            SyntaxList<AttributeListSyntax> attributeList = SyntaxFactory.List<AttributeListSyntax>();
+            SyntaxList<MemberDeclarationSyntax> membersList = SyntaxFactory.List(Members);
+            ParameterListSyntax? parametersList = null;// SyntaxFactory.ParameterList();
+            typeDeclaration = concreteTypeKind switch
+            {
+                //ConcreteTypeKind.Class => SyntaxFactory.ClassDeclaration(ClassName).WithMembers(membersList),
+                ConcreteTypeKind.Class => SyntaxFactory.ClassDeclaration(
+                    attributeList,
+                    Modifiers,
+                    SyntaxFactory.Token(SyntaxKind.ClassKeyword),
+                    SyntaxFactory.Identifier(ClassName),
+                    null,
+                    baseList,
+                    SyntaxFactory.List<TypeParameterConstraintClauseSyntax>(),
+                    SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                    membersList,
+                    SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
 
-            classDeclaration = classDeclaration.AddMembers(Members.ToArray());
+                //ConcreteTypeKind.Struct => SyntaxFactory.StructDeclaration(ClassName).WithMembers(membersList),
+                ConcreteTypeKind.Struct => SyntaxFactory.StructDeclaration(
+                    attributeList,
+                    Modifiers,
+                    SyntaxFactory.Token(SyntaxKind.StructKeyword),
+                    SyntaxFactory.Identifier(ClassName),
+                    null,
+                    baseList,
+                    SyntaxFactory.List<TypeParameterConstraintClauseSyntax>(),
+                    SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                    membersList,
+                    SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+
+                ConcreteTypeKind.RecordClass => SyntaxFactory.RecordDeclaration(
+                    SyntaxKind.RecordDeclaration,
+                    attributeList,
+                    Modifiers,
+                    SyntaxFactory.Token(SyntaxKind.RecordKeyword),
+                    SyntaxFactory.Token(SyntaxKind.ClassKeyword),
+                    SyntaxFactory.Identifier(ClassName),
+                    null,
+                    parametersList,
+                    baseList,
+                    SyntaxFactory.List<TypeParameterConstraintClauseSyntax>(),
+                    SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                    membersList,
+                    SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+
+
+                ConcreteTypeKind.RecordStruct => SyntaxFactory.RecordDeclaration(
+                    SyntaxKind.RecordStructDeclaration,
+                    attributeList,
+                    Modifiers,
+                    SyntaxFactory.Token(SyntaxKind.RecordKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StructKeyword),
+                    SyntaxFactory.Identifier(ClassName),
+                    null,
+                    parametersList,
+                    baseList,
+                    SyntaxFactory.List<TypeParameterConstraintClauseSyntax>(),
+                    SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                    membersList,
+                    SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+
+                _ => throw new Exception("Invalid ConcreteTypeKind")
+            };
+
+            //typeDeclaration = typeDeclaration.WithModifiers(Modifiers);
+            //typeDeclaration = AddBaseTypes(typeDeclaration);
 
             if (nspaceDeclaration != null)
             {
-                nspaceDeclaration = nspaceDeclaration.AddMembers(classDeclaration);
+                nspaceDeclaration = nspaceDeclaration.AddMembers(typeDeclaration);
                 if (EnableNullable)
                 {
                     nspaceDeclaration =
@@ -74,10 +143,10 @@ namespace SpeedyGenerators
             {
                 if (EnableNullable)
                 {
-                    classDeclaration = classDeclaration.WithLeadingTrivia(CreateNullableEnable());
+                    typeDeclaration = typeDeclaration.WithLeadingTrivia(CreateNullableEnable());
                 }
 
-                compilationUnit = compilationUnit.AddMembers(classDeclaration);
+                compilationUnit = compilationUnit.AddMembers(typeDeclaration);
             }
 
             if (EnableNullable)
@@ -93,7 +162,7 @@ namespace SpeedyGenerators
             return SourceText.From(compilationUnit.NormalizeWhitespace().ToFullString(), Encoding.UTF8);
         }
 
-        private ClassDeclarationSyntax AddBaseTypes(ClassDeclarationSyntax classDeclaration)
+        private BaseTypeSyntax[] GetBaseTypes()
         {
             List<string> bases = new();
             if (!string.IsNullOrEmpty(BaseClass))
@@ -112,16 +181,23 @@ namespace SpeedyGenerators
                 .Select(b => SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(b)))
                 .ToArray();
 
-            if (identifiers.Length > 0)
-            {
-                classDeclaration = classDeclaration.AddBaseListTypes(identifiers);
-            }
-
-            return classDeclaration;
+            return identifiers;
         }
 
+        private BaseTypeDeclarationSyntax AddBaseTypes(BaseTypeDeclarationSyntax declaration)
+        {
+            var identifiers = GetBaseTypes();
 
-        internal ClassDeclarationSyntax AddSerializableAttribute(ClassDeclarationSyntax classDeclaration)
+            if (identifiers.Length > 0)
+            {
+                declaration = declaration.AddBaseListTypes(identifiers);
+            }
+
+            return declaration;
+        }
+
+        // valid for ClassDeclarationSyntax, StructDeclarationSyntax and RecordDeclarationSyntax
+        internal TypeDeclarationSyntax AddSerializableAttribute(TypeDeclarationSyntax classDeclaration)
         {
             classDeclaration = classDeclaration.AddAttributeLists(
             SyntaxFactory.AttributeList(

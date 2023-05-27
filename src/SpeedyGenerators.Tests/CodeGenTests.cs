@@ -17,7 +17,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateCompareValueAndReturn()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreateCompareValueAndReturn("_field");
             Assert.AreEqual("if (_field == value)\r\n    return;", statement.ToString());
         }
@@ -25,7 +25,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateCallOnPropChanged()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreateCallMethod("OnPropertyChanged");
             Assert.AreEqual("OnPropertyChanged();", statement.ToString());
         }
@@ -33,7 +33,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateSetFieldValue()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreateSetFieldValue("_field");
             Assert.AreEqual("_field = value;", statement.ToString());
         }
@@ -41,7 +41,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateDeclareLocalOldValue()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreateDeclareLocalOldValue("_field", "oldValue");
             Assert.AreEqual("var oldValue = _field;", statement.ToString());
         }
@@ -49,7 +49,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateCallMethod2()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreateCallMethod("OnFieldChanged", "oldValue", "_field");
             Assert.AreEqual("OnFieldChanged(oldValue, _field);", statement.ToString());
         }
@@ -57,7 +57,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreatePropertyWithPropertyChanged()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var statement = mgr.CreatePropertyWithPropertyChanged(
                     new[] { "line1", "line2" },
                     mgr.GetTypeName("string"),
@@ -90,7 +90,7 @@ namespace SpeedyGenerators.Tests
         [TestMethod]
         public void CreateGlobalPartialMethod()
         {
-            var mgr = new ClassGenerator("FakeNS", "FakeClass");
+            var mgr = new ConcreteTypeGenerator("FakeNS", "FakeClass");
             var globalPartialmethodParameters = mgr.CreateParameters((mgr.GetTypeName("string"), "propertyName"));
             var statement = mgr.CreatePartialMethod(Array.Empty<string>(), "OnOnePropertyHasChanged", mgr.GetVoidTypeName(), globalPartialmethodParameters)
                 .NormalizeWhitespace();

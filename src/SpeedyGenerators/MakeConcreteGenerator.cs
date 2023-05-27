@@ -31,12 +31,12 @@ namespace SpeedyGenerators
                 // of the type that needs to be augmented with the INPC code
                 foreach (var classInfo in syntaxReceiver.ClassInfos.Values)
                 {
-                    var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
+                    var syntaxTree = classInfo.TypeDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
-                    classInfo.FullNameBaseTypes.AddRange(classInfo.ClassDeclaration.GetBaseTypes(semanticModel)
+                    classInfo.FullNameBaseTypes.AddRange(classInfo.TypeDeclaration.GetBaseTypes(semanticModel)
                         .Select(s => s.GetFullTypeName()));
 
-                    if(string.IsNullOrEmpty(classInfo.AttributeArguments.MockingFullTypeName))
+                    if (string.IsNullOrEmpty(classInfo.AttributeArguments.MockingFullTypeName))
                     {
                         ReportDiagnosticsInterfaceTypeNotLoaded(context, string.Empty);
                         return;
@@ -47,7 +47,7 @@ namespace SpeedyGenerators
                 {
                     var classInfo = kvp.Value;
 
-                    var syntaxTree = classInfo.ClassDeclaration.SyntaxTree;
+                    var syntaxTree = classInfo.TypeDeclaration.SyntaxTree;
                     var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
 
                     INamedTypeSymbol? ifaceSymbol = context.Compilation.GetTypeByMetadataName(
@@ -58,7 +58,7 @@ namespace SpeedyGenerators
                     if (ifaceDeclarationSyntax != null)
                     {
                         var nspace = GetFullNamespaceFor(ifaceDeclarationSyntax);
-                        if (nspace != null)
+                        if (nspace != null && classInfo.AttributeArguments.ImplementInterface)
                         {
                             classInfo.Namespaces.Add(nspace.ToString());
                         }
@@ -82,13 +82,19 @@ namespace SpeedyGenerators
 
                         if (propertySymbol.Type.IsReferenceType)
                         {
-                            // makes the type nullable
-                            propertyType = SyntaxFactory.NullableType(propertyType);
+                            if (classInfo.AttributeArguments.MakeReferenceTypesNullable)
+                            {
+                                // makes the type nullable
+                                propertyType = SyntaxFactory.NullableType(propertyType);
+                            }
                         }
                         else
                         {
-                            // it is a value type
-                            propertyType = SyntaxFactory.NullableType(propertyType);
+                            if (classInfo.AttributeArguments.MakeValueTypesNullable)
+                            {
+                                // it is a value type
+                                propertyType = SyntaxFactory.NullableType(propertyType);
+                            }
                         }
 
                         var propertyGenerationInfo = new PropertyGenerationInfo(propertyNameSymbol, propertyType);
@@ -119,13 +125,13 @@ namespace SpeedyGenerators
         {
             SyntaxNode? node = declarationSyntax;
             List<string> names = new();
-            while(node != null)
+            while (node != null)
             {
-                if(node is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
+                if (node is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
                 {
                     names.Insert(0, namespaceDeclarationSyntax.Name.ToString());
                 }
-                else if(node is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclarationSyntax)
+                else if (node is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclarationSyntax)
                 {
                     names.Insert(0, fileScopedNamespaceDeclarationSyntax.Name.ToString());
                 }
@@ -177,44 +183,52 @@ namespace SpeedyGenerators
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
-                if (syntaxNode is ClassDeclarationSyntax classDeclaration)
+                BaseTypeDeclarationSyntax? typeDeclaration = syntaxNode as BaseTypeDeclarationSyntax;
+                if (typeDeclaration == null) return;
+
+                ConcreteTypeKind? concreteTypeKind = typeDeclaration switch
                 {
-                    if (classDeclaration == null) return;
+                    ClassDeclarationSyntax => ConcreteTypeKind.Class,
+                    StructDeclarationSyntax => ConcreteTypeKind.Struct,
+                    RecordDeclarationSyntax record => record.ClassOrStructKeyword.IsKind(SyntaxKind.StructKeyword)
+                        ? ConcreteTypeKind.RecordStruct : ConcreteTypeKind.RecordClass,
+                    _ => null,
+                };
+                if (concreteTypeKind == null) return;
 
-                    var attribute = classDeclaration.AttributeLists
-                        .SelectMany(a => a.Attributes)
-                        .Select(a => (attribute: a, attribName: a.Name.ToString()))
-                        .Where(a => a.attribName == "MakeConcrete" ||
-                                    a.attribName == "MakeConcreteAttribute")
-                        .FirstOrDefault();
+                var attribute = typeDeclaration.AttributeLists
+                    .SelectMany(a => a.Attributes)
+                    .Select(a => (attribute: a, attribName: a.Name.ToString()))
+                    .Where(a => a.attribName == "MakeConcrete" ||
+                                a.attribName == "MakeConcreteAttribute")
+                    .FirstOrDefault();
 
-                    if (attribute.attribute == null) return;
+                if (attribute.attribute == null) return;
 
-                    var namespaceName = classDeclaration.Ancestors()
-                        .OfType<NamespaceDeclarationSyntax>()
-                        .FirstOrDefault()
-                        ?.Name
-                        ?.ToString();
+                var namespaceName = typeDeclaration.Ancestors()
+                    .OfType<NamespaceDeclarationSyntax>()
+                    .FirstOrDefault()
+                    ?.Name
+                    ?.ToString();
 
-                    namespaceName ??= classDeclaration.Ancestors()
-                        .OfType<FileScopedNamespaceDeclarationSyntax>()
-                        .FirstOrDefault()
-                        ?.Name
-                        ?.ToString();
+                namespaceName ??= typeDeclaration.Ancestors()
+                    .OfType<FileScopedNamespaceDeclarationSyntax>()
+                    .FirstOrDefault()
+                    ?.Name
+                    ?.ToString();
 
-                    namespaceName ??= String.Empty;
-                    var className = classDeclaration.Identifier.ToString();
-                    var fullName = $"{namespaceName}.{className}";
+                namespaceName ??= String.Empty;
+                var className = typeDeclaration.Identifier.ToString();
+                var fullName = $"{namespaceName}.{className}";
 
-                    var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
-                    if (attributeArguments == null) return;
+                var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
+                if (attributeArguments == null) return;
 
-                    if (!ClassInfos.TryGetValue(fullName, out MakeConcreteClassInfo classInfo))
-                    {
-                        classInfo = new MakeConcreteClassInfo(classDeclaration,
-                            namespaceName, className, attributeArguments);
-                        ClassInfos[fullName] = classInfo;
-                    }
+                if (!ClassInfos.TryGetValue(fullName, out MakeConcreteClassInfo classInfo))
+                {
+                    classInfo = new MakeConcreteClassInfo(concreteTypeKind.Value, typeDeclaration,
+                        namespaceName, className, attributeArguments);
+                    ClassInfos[fullName] = classInfo;
                 }
             }
         }
