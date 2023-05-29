@@ -29,13 +29,6 @@ namespace LibraryTest
     {
     }
 
-    [MakeConcrete(
-     interfaceFullTypeName: "LibraryTest.Abc.IMyInterface",
-     generateInitializingConstructor: true,
-     makeSettersPrivate: false,
-     implementInterface: false,
-     makeReferenceTypesNullable: true,
-     makeValueTypesNullable: false)]
     partial record class MyRecord { }
 
     partial struct MyStruct { }

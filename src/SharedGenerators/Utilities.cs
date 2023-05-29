@@ -13,12 +13,6 @@ internal static class Utilities
 {
     public const string NewLine = "\n";
 
-    public static string toCamel(this string text)
-    {
-        if (string.IsNullOrEmpty(text)) { return text; }
-        return $"{Char.ToLower(text[0])}{text.Substring(1)}";
-    }
-
     public static string ExtractString(string[] arguments, int index, string defaultValue)
     {
         if (index >= arguments.Length) { return defaultValue; }

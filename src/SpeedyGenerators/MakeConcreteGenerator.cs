@@ -149,14 +149,14 @@ namespace SpeedyGenerators
         /// whenever multiple classes with the same name (but different namespace) exists
         /// </summary>
         private Dictionary<string, string> CreateFilenames(
-            Dictionary<string, MakeConcreteClassInfo> classInfos)
+            Dictionary<string, MakeConcreteTypeInfo> classInfos)
         {
             int i = 0;
             Dictionary<string, string> result = new();
             HashSet<string> values = new();
             foreach (var kvp in classInfos)
             {
-                var className = kvp.Value.ClassName;
+                var className = kvp.Value.TypeName;
 
                 var uniqueName = GenerateUnique(values, className, ref i);
                 result[kvp.Key] = uniqueName;
@@ -179,7 +179,7 @@ namespace SpeedyGenerators
 
         private class SyntaxReceiver : ISyntaxReceiver
         {
-            internal Dictionary<string, MakeConcreteClassInfo> ClassInfos { get; } = new();
+            internal Dictionary<string, MakeConcreteTypeInfo> ClassInfos { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
@@ -224,9 +224,9 @@ namespace SpeedyGenerators
                 var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
                 if (attributeArguments == null) return;
 
-                if (!ClassInfos.TryGetValue(fullName, out MakeConcreteClassInfo classInfo))
+                if (!ClassInfos.TryGetValue(fullName, out MakeConcreteTypeInfo classInfo))
                 {
-                    classInfo = new MakeConcreteClassInfo(concreteTypeKind.Value, typeDeclaration,
+                    classInfo = new MakeConcreteTypeInfo(concreteTypeKind.Value, typeDeclaration,
                         namespaceName, className, attributeArguments);
                     ClassInfos[fullName] = classInfo;
                 }

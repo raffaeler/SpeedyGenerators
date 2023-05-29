@@ -185,7 +185,7 @@ namespace SpeedyGenerators
                         ClassInfos[fullName] = classInfo;
                     }
 
-                    var fieldInfo = new FieldInfo(fieldName, fieldType, comments, attributeArguments);
+                    var fieldInfo = new MakePropertyFieldInfo(fieldName, fieldType, comments, attributeArguments);
                     classInfo.Fields.Add(fieldInfo);
                 }
             }
