@@ -1,12 +1,13 @@
 # SpeedyGenerators
 
-C# code generators are new to C# version 9.
+SpeedyGenerators is a collection of C# Code Generators (available since C# 9) which generate C# code to *augment* the code written by the developer.
 
-Apart from straightforward cases, the greatest majority of the code is generated using the Roslyn (C# compiler) API.
+### List of generators
 
-All the code in the NuGet package is only used at development time. There is no run-time dependency, therefore you don't need to deploy the binaries for this package.
+* `MakePropertyAttribute` is applied to a field and generates (in the partial class) a property implementing the `INotifyPropertyChanged` interface.
+* (new in version 1.1.0) `MakeConcreteAttribute` is applied to a partial class and generated (in the partial class) all the properties belonging to the interface specified in the attribute (full qualified name of the interface). The interface may or not be implemented by the class.
 
-The generation process happens thanks to the C# compiler. This means it works even if the build is done on the command line. In other word there is no dependency from Visual Studio or other IDEs.
+Please visit https://github.com/raffaeler/SpeedyGenerators for more details.
 
-Once the package is referenced in the application, just start coding as shown in the examples. The generated code can be examined by expanding the Analyzers tree. See the repository readme for details.
+
 

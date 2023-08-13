@@ -9,14 +9,22 @@
     <Import_RootNamespace>SpeedyGenerators</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)ClassGenerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ClassInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConcreteTypeGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConcreteTypeKind.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeConcrete\MakeConcreteTypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeProperty\MakePropertyClassInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Diagnostics.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extractor.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)FieldInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeProperty\MakePropertyFieldInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GeneratorManager.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MakePropertyArguments.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeConcrete\MakeConcreteArguments.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MakeProperty\MakePropertyArguments.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertyGenerationInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utilities.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)MakeConcrete\" />
+    <Folder Include="$(MSBuildThisFileDirectory)MakeProperty\" />
   </ItemGroup>
 </Project>

@@ -97,7 +97,7 @@ namespace SpeedyGenerators
         /// whenever multiple classes with the same name (but different namespace) exists
         /// </summary>
         private Dictionary<string, string> CreateFilenames(
-            Dictionary<string, ClassInfo> classInfos)
+            Dictionary<string, MakePropertyClassInfo> classInfos)
         {
             int i = 0;
             Dictionary<string, string> result = new();
@@ -127,7 +127,7 @@ namespace SpeedyGenerators
 
         private class SyntaxReceiver : ISyntaxReceiver
         {
-            internal Dictionary<string, ClassInfo> ClassInfos { get; } = new();
+            internal Dictionary<string, MakePropertyClassInfo> ClassInfos { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
@@ -174,18 +174,18 @@ namespace SpeedyGenerators
                     var fieldType = fieldDeclaration.Declaration?.Type;
                     if (fieldType == null) return;
 
-                    var attributeArguments = Extractor.ExtractAttributeArguments(attribute.attribute);
+                    var attributeArguments = Extractor.ExtractMakePropertyArguments(attribute.attribute);
                     if (attributeArguments == null) return;
 
                     var comments = Extractor.ExtractComments(fieldDeclaration);
 
-                    if (!ClassInfos.TryGetValue(fullName, out ClassInfo classInfo))
+                    if (!ClassInfos.TryGetValue(fullName, out MakePropertyClassInfo classInfo))
                     {
-                        classInfo = new ClassInfo(editedClass, namespaceName, className);
+                        classInfo = new MakePropertyClassInfo(editedClass, namespaceName, className);
                         ClassInfos[fullName] = classInfo;
                     }
 
-                    var fieldInfo = new FieldInfo(fieldName, fieldType, comments, attributeArguments);
+                    var fieldInfo = new MakePropertyFieldInfo(fieldName, fieldType, comments, attributeArguments);
                     classInfo.Fields.Add(fieldInfo);
                 }
             }
