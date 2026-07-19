@@ -8,12 +8,12 @@ using Microsoft.CodeAnalysis.Text;
 namespace SpeedyGenerators;
 
 [Generator]
-public class AttributeClassGenerator : ISourceGenerator
+public class AttributeClassGenerator : IIncrementalGenerator
 {
     private static readonly string _attributeNamespace = "SpeedyGenerators";
     private static readonly string _attributeClassName = "MakePropertyAttribute";
 
-    private static SourceText sourceText = SourceText.From($$"""
+    private static SourceText _sourceText = SourceText.From($$"""
         using System;
 
         namespace {{_attributeNamespace}}
@@ -68,13 +68,10 @@ public class AttributeClassGenerator : ISourceGenerator
         """, Encoding.UTF8);
 
 
-    public void Execute(GeneratorExecutionContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.AddSource(_attributeClassName, sourceText);
-    }
-
-    public void Initialize(GeneratorInitializationContext context)
-    {
+        context.RegisterPostInitializationOutput(ctx =>
+            ctx.AddSource(_attributeClassName, _sourceText));
     }
 }
 

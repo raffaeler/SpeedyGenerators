@@ -1,269 +1,343 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace SpeedyGenerators
+namespace SpeedyGenerators;
+
+[Generator]
+public partial class MakeConcreteGenerator : IIncrementalGenerator
 {
-    [Generator]
-    public partial class MakeConcreteGenerator : ISourceGenerator
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        public void Initialize(GeneratorInitializationContext context)
+        // Collect type declarations with [MakeConcrete] attribute
+        var typeInfos = context.SyntaxProvider.CreateSyntaxProvider(
+            predicate: static (node, _) => IsTypeWithMakeConcreteAttribute(node),
+            transform: static (ctx, ct) => TransformType(ctx, ct)
+        ).Where(static info => info != null);
+
+        // Combine with compilation for semantic analysis (resolving interface types)
+        var combined = typeInfos.Collect().Combine(context.CompilationProvider);
+
+        // Generate source
+        context.RegisterSourceOutput(combined, static (spc, pair) => GenerateSource(spc, pair.Left, pair.Right));
+    }
+
+    private static bool IsTypeWithMakeConcreteAttribute(SyntaxNode node)
+    {
+        if (node is not BaseTypeDeclarationSyntax typeDecl) return false;
+
+        var concreteTypeKind = typeDecl switch
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
-        }
+            ClassDeclarationSyntax => ConcreteTypeKind.Class,
+            StructDeclarationSyntax => ConcreteTypeKind.Struct,
+            RecordDeclarationSyntax record => record.ClassOrStructKeyword.IsKind(SyntaxKind.StructKeyword)
+                ? ConcreteTypeKind.RecordStruct : ConcreteTypeKind.RecordClass,
+            _ => (ConcreteTypeKind?)null,
+        };
 
-        public void Execute(GeneratorExecutionContext context)
+        if (concreteTypeKind == null) return false;
+
+        return typeDecl.AttributeLists
+            .SelectMany(a => a.Attributes)
+            .Any(a => a.Name.ToString() is "MakeConcrete" or "MakeConcreteAttribute");
+    }
+
+    private static TypePipelineData? TransformType(GeneratorSyntaxContext ctx, CancellationToken ct)
+    {
+        var typeDeclaration = (BaseTypeDeclarationSyntax)ctx.Node;
+
+        var concreteTypeKind = typeDeclaration switch
         {
-            try
-            {
-                if (context.SyntaxReceiver == null) return;
-                var syntaxReceiver = (SyntaxReceiver)context.SyntaxReceiver;
-                var filenamesLookup = CreateFilenames(syntaxReceiver.ClassInfos);
+            ClassDeclarationSyntax => ConcreteTypeKind.Class,
+            StructDeclarationSyntax => ConcreteTypeKind.Struct,
+            RecordDeclarationSyntax record => record.ClassOrStructKeyword.IsKind(SyntaxKind.StructKeyword)
+                ? ConcreteTypeKind.RecordStruct : ConcreteTypeKind.RecordClass,
+            _ => (ConcreteTypeKind?)null,
+        };
 
-                // First step: retrieve all the full type names for the concrete base types
-                // of the type that needs to be augmented with the INPC code
-                foreach (var classInfo in syntaxReceiver.ClassInfos.Values)
-                {
-                    var syntaxTree = classInfo.TypeDeclaration.SyntaxTree;
-                    var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
-                    classInfo.FullNameBaseTypes.AddRange(classInfo.TypeDeclaration.GetBaseTypes(semanticModel)
-                        .Select(s => s.GetFullTypeName()));
+        if (concreteTypeKind == null) return null;
 
-                    if (string.IsNullOrEmpty(classInfo.AttributeArguments.MockingFullTypeName))
-                    {
-                        ReportDiagnosticsInterfaceTypeNotLoaded(context, string.Empty);
-                        return;
-                    }
-                }
+        var attribute = typeDeclaration.AttributeLists
+            .SelectMany(a => a.Attributes)
+            .Select(a => (attribute: a, attribName: a.Name.ToString()))
+            .FirstOrDefault(a => a.attribName is "MakeConcrete" or "MakeConcreteAttribute");
 
-                foreach (var kvp in syntaxReceiver.ClassInfos)
-                {
-                    var classInfo = kvp.Value;
+        if (attribute.attribute == null) return null;
 
-                    var syntaxTree = classInfo.TypeDeclaration.SyntaxTree;
-                    var semanticModel = context.Compilation.GetSemanticModel(syntaxTree);
+        var namespaceName = typeDeclaration.Ancestors()
+            .OfType<NamespaceDeclarationSyntax>()
+            .FirstOrDefault()
+            ?.Name
+            ?.ToString();
 
-                    INamedTypeSymbol? ifaceSymbol = context.Compilation.GetTypeByMetadataName(
-                        classInfo.AttributeArguments.MockingFullTypeName);
-                    if (ifaceSymbol?.Name == null) continue;
-                    var ifaceDeclarationSyntax = ifaceSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
-                        as InterfaceDeclarationSyntax;
-                    if (ifaceDeclarationSyntax != null)
-                    {
-                        var nspace = GetFullNamespaceFor(ifaceDeclarationSyntax);
-                        if (nspace != null && classInfo.AttributeArguments.ImplementInterface)
-                        {
-                            classInfo.Namespaces.Add(nspace.ToString());
-                        }
-                    }
+        namespaceName ??= typeDeclaration.Ancestors()
+            .OfType<FileScopedNamespaceDeclarationSyntax>()
+            .FirstOrDefault()
+            ?.Name
+            ?.ToString();
 
-                    classInfo.MockingTypeName = ifaceSymbol.Name;
-                    var propertySymbols = ifaceSymbol?.GetMembers().OfType<IPropertySymbol>();
-                    // to go back to the syntax use .DeclaringSyntaxReferences
-                    foreach (var propertySymbol in propertySymbols ?? Array.Empty<IPropertySymbol>())
-                    {
-                        var propertyNameSymbol = propertySymbol.Name;         // propertySymbol.MetadataName
-                        var propertyTypeSymbol = propertySymbol.Type.Name;    // propertySymbol.Type.MetadataName
+        namespaceName ??= string.Empty;
+        var typeName = typeDeclaration.Identifier.ToString();
+        var fullName = $"{namespaceName}.{typeName}";
 
-                        var nameSyntax = SyntaxFactory.ParseName(propertyTypeSymbol);
-                        var propertyDeclarationSyntax = propertySymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
-                             as PropertyDeclarationSyntax;
-                        if (propertyDeclarationSyntax?.Type == null) continue;
+        var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
+        if (attributeArguments == null) return null;
 
-                        var propertyType = propertyDeclarationSyntax.Type;
-                        Utilities.FillNamespaceChain(propertyType, semanticModel, classInfo.Namespaces);
+        return new TypePipelineData(
+            concreteTypeKind.Value,
+            namespaceName,
+            typeName,
+            fullName,
+            attributeArguments);
+    }
 
-                        if (propertySymbol.Type.IsReferenceType)
-                        {
-                            if (classInfo.AttributeArguments.MakeReferenceTypesNullable)
-                            {
-                                // makes the type nullable
-                                propertyType = SyntaxFactory.NullableType(propertyType);
-                            }
-                        }
-                        else
-                        {
-                            if (classInfo.AttributeArguments.MakeValueTypesNullable)
-                            {
-                                // it is a value type
-                                propertyType = SyntaxFactory.NullableType(propertyType);
-                            }
-                        }
-
-                        var propertyGenerationInfo = new PropertyGenerationInfo(propertyNameSymbol, propertyType);
-                        classInfo.Properties.Add(propertyGenerationInfo);
-                    }
-
-                    //foreach (var property in classInfo.Properties)
-                    //{
-                    //    if (property.PropertyType == null) continue;
-
-                    //    Utilities.FillNamespaceChain(property.PropertyType, semanticModel, classInfo.Namespaces);
-                    //}
-
-                    var mgr = new GeneratorManager();
-                    var result = mgr.GenerateImplementationClass(classInfo);
-
-                    var hintName = filenamesLookup[kvp.Key];
-                    context.AddSource(hintName, result);
-                }
-            }
-            catch (Exception err)
-            {
-                ReportDiagnostics(context, err);
-            }
-        }
-
-        private string GetFullNamespaceFor(InterfaceDeclarationSyntax declarationSyntax)
+    private static void GenerateSource(
+        SourceProductionContext spc,
+        ImmutableArray<TypePipelineData?> typeInfos,
+        Compilation compilation)
+    {
+        try
         {
-            SyntaxNode? node = declarationSyntax;
-            List<string> names = new();
-            while (node != null)
+            var classInfos = new Dictionary<string, MakeConcreteTypeInfo>();
+
+            foreach (var data in typeInfos)
             {
-                if (node is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
+                if (!data.HasValue) continue;
+                var d = data.Value;
+
+                // Find the type declaration in the compilation
+                var typeDeclaration = FindTypeDeclaration(compilation, d.NamespaceName, d.TypeName);
+                if (typeDeclaration == null) continue;
+
+                var classInfo = new MakeConcreteTypeInfo(d.ConcreteTypeKind,
+                    typeDeclaration, d.NamespaceName, d.TypeName, d.AttributeArguments);
+
+                // Retrieve base types
+                var syntaxTree = typeDeclaration.SyntaxTree;
+                var semanticModel = compilation.GetSemanticModel(syntaxTree);
+                classInfo.FullNameBaseTypes.AddRange(typeDeclaration.GetBaseTypes(semanticModel)
+                    .Select(s => s.GetFullTypeName()));
+
+                if (string.IsNullOrEmpty(classInfo.AttributeArguments.MockingFullTypeName))
                 {
-                    names.Insert(0, namespaceDeclarationSyntax.Name.ToString());
+                    ReportDiagnosticsInterfaceTypeNotLoaded(spc, string.Empty);
+                    return;
                 }
-                else if (node is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclarationSyntax)
-                {
-                    names.Insert(0, fileScopedNamespaceDeclarationSyntax.Name.ToString());
-                }
-                node = node.Parent;
+
+                classInfos[d.FullName] = classInfo;
             }
 
-            return string.Join(".", names);
-        }
+            var filenamesLookup = CreateFilenames(classInfos);
 
-        /// <summary>
-        /// Generate a new dictionary:
-        /// key => namespace.name (identical to the incoming dictionary)
-        /// value => a new unique name for the filename
-        /// The value can be just the class name or something more complex
-        /// whenever multiple classes with the same name (but different namespace) exists
-        /// </summary>
-        private Dictionary<string, string> CreateFilenames(
-            Dictionary<string, MakeConcreteTypeInfo> classInfos)
-        {
-            int i = 0;
-            Dictionary<string, string> result = new();
-            HashSet<string> values = new();
             foreach (var kvp in classInfos)
             {
-                var className = kvp.Value.TypeName;
+                var fullName = kvp.Key;
+                var classInfo = kvp.Value;
+                var syntaxTree = classInfo.TypeDeclaration.SyntaxTree;
+                var semanticModel = compilation.GetSemanticModel(syntaxTree);
 
-                var uniqueName = GenerateUnique(values, className, ref i);
-                result[kvp.Key] = uniqueName;
-                values.Add(uniqueName);
-            }
+                INamedTypeSymbol? ifaceSymbol = compilation.GetTypeByMetadataName(
+                    classInfo.AttributeArguments.MockingFullTypeName);
+                if (ifaceSymbol?.Name == null) continue;
 
-            return result;
-
-            static string GenerateUnique(HashSet<string> values, string name, ref int i)
-            {
-                var tempName = name;
-                while (values.Contains(tempName))
+                var ifaceDeclarationSyntax = ifaceSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+                    as InterfaceDeclarationSyntax;
+                if (ifaceDeclarationSyntax != null)
                 {
-                    tempName = $"{tempName}{++i}";
+                    var nspace = GetFullNamespaceFor(ifaceDeclarationSyntax);
+                    if (nspace != null && classInfo.AttributeArguments.ImplementInterface)
+                    {
+                        classInfo.Namespaces.Add(nspace.ToString());
+                    }
                 }
 
-                return tempName;
+                classInfo.MockingTypeName = ifaceSymbol!.Name;
+                var propertySymbols = ifaceSymbol?.GetMembers().OfType<IPropertySymbol>();
+                foreach (var propertySymbol in propertySymbols ?? Array.Empty<IPropertySymbol>())
+                {
+                    var propertyNameSymbol = propertySymbol.Name;
+                    var propertyTypeSymbol = propertySymbol.Type.Name;
+
+                    var nameSyntax = SyntaxFactory.ParseName(propertyTypeSymbol);
+                    var propertyDeclarationSyntax = propertySymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+                         as PropertyDeclarationSyntax;
+                    if (propertyDeclarationSyntax?.Type == null) continue;
+
+                    var propertyType = propertyDeclarationSyntax.Type;
+                    Utilities.FillNamespaceChain(propertyType, semanticModel, classInfo.Namespaces);
+
+                    if (propertySymbol.Type.IsReferenceType)
+                    {
+                        if (classInfo.AttributeArguments.MakeReferenceTypesNullable)
+                        {
+                            propertyType = SyntaxFactory.NullableType(propertyType);
+                        }
+                    }
+                    else
+                    {
+                        if (classInfo.AttributeArguments.MakeValueTypesNullable)
+                        {
+                            propertyType = SyntaxFactory.NullableType(propertyType);
+                        }
+                    }
+
+                    var propertyGenerationInfo = new PropertyGenerationInfo(propertyNameSymbol, propertyType);
+                    classInfo.Properties.Add(propertyGenerationInfo);
+                }
+
+                var mgr = new GeneratorManager();
+                var result = mgr.GenerateImplementationClass(classInfo);
+
+                var hintName = filenamesLookup[fullName];
+                spc.AddSource(hintName, result);
             }
         }
-
-        private class SyntaxReceiver : ISyntaxReceiver
+        catch (Exception err)
         {
-            internal Dictionary<string, MakeConcreteTypeInfo> ClassInfos { get; } = new();
+            ReportDiagnostics(spc, err);
+        }
+    }
 
-            public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
+    private static BaseTypeDeclarationSyntax? FindTypeDeclaration(Compilation compilation,
+        string namespaceName, string typeName)
+    {
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var root = tree.GetRoot();
+            foreach (var typeDecl in root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
             {
-                BaseTypeDeclarationSyntax? typeDeclaration = syntaxNode as BaseTypeDeclarationSyntax;
-                if (typeDeclaration == null) return;
+                if (typeDecl.Identifier.ToString() != typeName) continue;
 
-                ConcreteTypeKind? concreteTypeKind = typeDeclaration switch
-                {
-                    ClassDeclarationSyntax => ConcreteTypeKind.Class,
-                    StructDeclarationSyntax => ConcreteTypeKind.Struct,
-                    RecordDeclarationSyntax record => record.ClassOrStructKeyword.IsKind(SyntaxKind.StructKeyword)
-                        ? ConcreteTypeKind.RecordStruct : ConcreteTypeKind.RecordClass,
-                    _ => null,
-                };
-                if (concreteTypeKind == null) return;
-
-                var attribute = typeDeclaration.AttributeLists
-                    .SelectMany(a => a.Attributes)
-                    .Select(a => (attribute: a, attribName: a.Name.ToString()))
-                    .Where(a => a.attribName == "MakeConcrete" ||
-                                a.attribName == "MakeConcreteAttribute")
-                    .FirstOrDefault();
-
-                if (attribute.attribute == null) return;
-
-                var namespaceName = typeDeclaration.Ancestors()
+                var ns = typeDecl.Ancestors()
                     .OfType<NamespaceDeclarationSyntax>()
                     .FirstOrDefault()
-                    ?.Name
-                    ?.ToString();
+                    ?.Name?.ToString();
 
-                namespaceName ??= typeDeclaration.Ancestors()
+                ns ??= typeDecl.Ancestors()
                     .OfType<FileScopedNamespaceDeclarationSyntax>()
                     .FirstOrDefault()
-                    ?.Name
-                    ?.ToString();
+                    ?.Name?.ToString();
 
-                namespaceName ??= String.Empty;
-                var className = typeDeclaration.Identifier.ToString();
-                var fullName = $"{namespaceName}.{className}";
+                ns ??= string.Empty;
 
-                var attributeArguments = Extractor.ExtractMakeConcreteArguments(attribute.attribute);
-                if (attributeArguments == null) return;
-
-                if (!ClassInfos.TryGetValue(fullName, out MakeConcreteTypeInfo classInfo))
-                {
-                    classInfo = new MakeConcreteTypeInfo(concreteTypeKind.Value, typeDeclaration,
-                        namespaceName, className, attributeArguments);
-                    ClassInfos[fullName] = classInfo;
-                }
+                if (ns == namespaceName) return typeDecl;
             }
         }
 
-        private void ReportDiagnostics(GeneratorExecutionContext context, Exception exception)
+        return null;
+    }
+
+    private static string GetFullNamespaceFor(InterfaceDeclarationSyntax declarationSyntax)
+    {
+        SyntaxNode? node = declarationSyntax;
+        List<string> names = new();
+        while (node != null)
         {
-            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                id: "MCG01",
-                title: "General error",
-                messageFormat: "An exception was generated: '{0}'",
-                category: "MakeConcreteGenerator",
-                DiagnosticSeverity.Warning,
-                isEnabledByDefault: true), Location.None, exception.Message));
+            if (node is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
+            {
+                names.Insert(0, namespaceDeclarationSyntax.Name.ToString());
+            }
+            else if (node is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclarationSyntax)
+            {
+                names.Insert(0, fileScopedNamespaceDeclarationSyntax.Name.ToString());
+            }
+            node = node.Parent;
         }
 
-        private void ReportDiagnostics(GeneratorExecutionContext context, string detail)
+        return string.Join(".", names);
+    }
+
+    private static Dictionary<string, string> CreateFilenames(
+        Dictionary<string, MakeConcreteTypeInfo> classInfos)
+    {
+        int i = 0;
+        Dictionary<string, string> result = new();
+        HashSet<string> values = new();
+        foreach (var kvp in classInfos)
         {
-            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                id: "MCG02",
-                title: "General syntax error",
-                messageFormat: "A syntax error in the code is preventing the generation '{0}'",
-                category: "MakeConcreteGenerator",
-                DiagnosticSeverity.Warning,
-                isEnabledByDefault: true), Location.None, detail));
+            var className = kvp.Value.TypeName;
+            var uniqueName = GenerateUnique(values, className, ref i);
+            result[kvp.Key] = uniqueName;
+            values.Add(uniqueName);
         }
 
-        private void ReportDiagnosticsInterfaceTypeNotLoaded(GeneratorExecutionContext context, string detail)
+        return result;
+
+        static string GenerateUnique(HashSet<string> values, string name, ref int i)
         {
-            context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                id: "MCG03",
-                title: "Invalid interface type",
-                messageFormat: "The specified interface type cannot be null or empty '{0}'",
-                category: "MakeConcreteGenerator",
-                DiagnosticSeverity.Warning,
-                isEnabledByDefault: true), Location.None, detail));
+            var tempName = name;
+            while (values.Contains(tempName))
+            {
+                tempName = $"{tempName}{++i}";
+            }
+            return tempName;
+        }
+    }
+
+    private static void ReportDiagnostics(SourceProductionContext context, Exception exception)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+            id: "MCG01",
+            title: "General error",
+            messageFormat: "An exception was generated: '{0}'",
+            category: "MakeConcreteGenerator",
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true), Location.None, exception.Message));
+    }
+
+    private static void ReportDiagnostics(SourceProductionContext context, string detail)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+            id: "MCG02",
+            title: "General syntax error",
+            messageFormat: "A syntax error in the code is preventing the generation '{0}'",
+            category: "MakeConcreteGenerator",
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true), Location.None, detail));
+    }
+
+    private static void ReportDiagnosticsInterfaceTypeNotLoaded(SourceProductionContext context, string detail)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
+            id: "MCG03",
+            title: "Invalid interface type",
+            messageFormat: "The specified interface type cannot be null or empty '{0}'",
+            category: "MakeConcreteGenerator",
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true), Location.None, detail));
+    }
+
+    /// <summary>
+    /// Pipeline data struct for type-level data extracted from syntax.
+    /// </summary>
+    private readonly struct TypePipelineData
+    {
+        public readonly ConcreteTypeKind ConcreteTypeKind;
+        public readonly string NamespaceName;
+        public readonly string TypeName;
+        public readonly string FullName;
+        public readonly MakeConcreteArguments AttributeArguments;
+
+        public TypePipelineData(ConcreteTypeKind concreteTypeKind,
+            string namespaceName,
+            string typeName,
+            string fullName,
+            MakeConcreteArguments attributeArguments)
+        {
+            ConcreteTypeKind = concreteTypeKind;
+            NamespaceName = namespaceName;
+            TypeName = typeName;
+            FullName = fullName;
+            AttributeArguments = attributeArguments;
         }
     }
 }
